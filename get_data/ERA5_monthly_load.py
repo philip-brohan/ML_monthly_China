@@ -37,7 +37,10 @@ sCube = iris.cube.Cube(dummy_data, dim_coords_and_dims=[(x_coord, 0), (y_coord, 
 lm_plot = iris.load_cube(
     "%s/fixed_fields/land_mask/opfc_global_2019.nc" % os.getenv("DATADIR")
 )
-lm_plot = lm_plot.regrid(sCube, iris.analysis.Linear())
+lm_plot = lm_plot.extract(
+    iris.Constraint(latitude=lambda cell: 10 <= cell <= 60)
+    & iris.Constraint(longitude=lambda cell: 60 <= cell <= 140)
+)
 
 # And a land-mask for ERA5 SST grid
 fname = "%s/ERA5/monthly/reanalysis/%04d/%s.nc" % (
