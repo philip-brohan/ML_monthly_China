@@ -98,10 +98,10 @@ cb = fig.colorbar(
 # Bottom left - SST
 var = load_variable("sea_surface_temperature", args.year, args.month)
 var -= 273.15
-# (dmin, dmax) = get_range("sea_surface_temperature", args.month)
-(dmin, dmax) = (0, 30)
-# dmin -= 273.15
-# dmax -= 273.15
+(dmin, dmax) = get_range("sea_surface_temperature", args.month)
+#(dmin, dmax) = (0, 30)
+dmin -= 273.15
+dmax -= 273.15
 ax_sst = fig.add_axes([0.025 / 2, 0.125 / 2, 0.95 / 2, 0.85 / 2])
 ax_sst.set_axis_off()
 SST_img = plotFieldAxes(

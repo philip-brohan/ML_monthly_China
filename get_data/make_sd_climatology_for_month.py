@@ -40,6 +40,7 @@ for year in range(1981, 2011):
     count += 1
 
 sum /= count
+sum.data[sum.data<0]=0 # Eliminates mising data issues
 sum = iris.analysis.maths.apply_ufunc(np.sqrt, sum)
 
 iris.save(sum, "%s/%s_%02d.nc" % (args.opdir, args.variable, args.month))

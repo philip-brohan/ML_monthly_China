@@ -18,7 +18,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--variable", help="Variable name", type=str, required=True)
 args = parser.parse_args()
 
-pc = plot_cube()
 smax = -1000000.0
 smin = 1000000.0
 for year in range(1981, 2011):
