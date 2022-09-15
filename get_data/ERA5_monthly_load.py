@@ -29,8 +29,8 @@ y_coord = iris.coords.DimCoord(
     coord_system=cs_ERA5,
 )
 y_coord.guess_bounds()
-dummy_data = np.zeros((len(x_coord.points), len(y_coord.points)))
-sCube = iris.cube.Cube(dummy_data, dim_coords_and_dims=[(x_coord, 0), (y_coord, 1)])
+dummy_data = np.zeros((len(y_coord.points), len(x_coord.points)))
+sCube = iris.cube.Cube(dummy_data, dim_coords_and_dims=[(x_coord, 1), (y_coord, 0)])
 
 
 # Also want a land mask for plotting:
@@ -122,6 +122,8 @@ def get_range(variable, month, cube=None):
     if cube is not None:
         clim = clim.regrid(cube, iris.analysis.Nearest())
         sdc = sdc.regrid(cube, iris.analysis.Nearest())
-    dmax = np.percentile(clim.data + (sdc.data * 2), 95)
-    dmin = np.percentile(clim.data - (sdc.data * 2), 5)
+    v = clim.data + (sdc.data * 2)
+    dmax = np.percentile(v.data[v.mask == False], 95)
+    v = clim.data - (sdc.data * 2)
+    dmin = np.percentile(v.data[v.mask == False], 5)
     return (dmin, dmax)

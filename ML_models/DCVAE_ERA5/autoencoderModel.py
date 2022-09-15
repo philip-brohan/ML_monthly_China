@@ -48,7 +48,7 @@ class DCVAE(tf.keras.Model):
                     activation="elu",
                 ),
                 tf.keras.layers.Conv2D(
-                    filters=40,
+                    filters=40*2,
                     kernel_size=3,
                     strides=(2, 2),
                     padding="same",
@@ -140,7 +140,7 @@ class DCVAE(tf.keras.Model):
             * self.RMSE_scale
             * self.PRMSL_scale
         )
-        mask = tf.broadcast_to(sst_mask, generated[:, :, :, 1].shape)  # Add batch dim
+        mask = tf.broadcast_to(tf.logical_not(sst_mask), generated[:, :, :, 1].shape)  # Add batch dim
         rmse_SST = (
             tf.math.sqrt(
                 tf.reduce_mean(
