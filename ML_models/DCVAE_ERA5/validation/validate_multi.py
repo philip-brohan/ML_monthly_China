@@ -44,9 +44,9 @@ parser.add_argument(
     default=None,
 )
 parser.add_argument(
-    "--anomalies",
-    help="Make monthly anomalies",
-    dest="anomalies",
+    "--actuals",
+    help="Show actuals (not anomalies)",
+    dest="actuals",
     default=False,
     action="store_true",
 )
@@ -89,11 +89,11 @@ def unnormalise(value, variable):
     return value
 
 
-def field_to_scalar(field, variable, month, mask, anomalies=False):
+def field_to_scalar(field, variable, month, mask, actuals=False):
     f2 = unnormalise(field, variable)
-    if anomalies:
+    if actuals:
         clim = load_climatology(variable, month)
-        f2 -= clim.data
+        f2 += clim.data
     if args.xpoint is not None and args.ypoint is not None:
         return f2[args.ypoint, args.xpoint]
     if args.xpoint is None and args.ypoint is None:
@@ -123,39 +123,39 @@ def compute_stats(model, x):
         "mean_sea_level_pressure",
         month,
         None,
-        anomalies=args.anomalies,
+        actuals=args.actuals,
     )
     stats["PRMSL_model"] = field_to_scalar(
         generated[0, :, :, 0].numpy(),
         "mean_sea_level_pressure",
         month,
         None,
-        anomalies=args.anomalies,
+        actuals=args.actuals,
     )
     vt = x[0][0, :, :, 1].numpy()
     mask = lm_ERA5.data.mask
     stats["SST_target"] = field_to_scalar(
-        vt, "sea_surface_temperature", month, mask, anomalies=args.anomalies
+        vt, "sea_surface_temperature", month, mask, actuals=args.actuals
     )
     vm = generated[0, :, :, 1].numpy()
     stats["SST_model"] = field_to_scalar(
-        vm, "sea_surface_temperature", month, mask, anomalies=args.anomalies
+        vm, "sea_surface_temperature", month, mask, actuals=args.actuals
     )
     vt = x[0][0, :, :, 2].numpy()
     stats["T2M_target"] = field_to_scalar(
-        vt, "2m_temperature", month, None, anomalies=args.anomalies
+        vt, "2m_temperature", month, None, actuals=args.actuals
     )
     vm = generated[0, :, :, 2].numpy()
     stats["T2M_model"] = field_to_scalar(
-        vm, "2m_temperature", month, None, anomalies=args.anomalies
+        vm, "2m_temperature", month, None, actuals=args.actuals
     )
     vt = x[0][0, :, :, 3].numpy()
     stats["PRATE_target"] = field_to_scalar(
-        vt, "total_precipitation", month, None, anomalies=args.anomalies
+        vt, "total_precipitation", month, None, actuals=args.actuals
     )
     vm = generated[0, :, :, 3].numpy()
     stats["PRATE_model"] = field_to_scalar(
-        vm, "total_precipitation", month, None, anomalies=args.anomalies
+        vm, "total_precipitation", month, None, actuals=args.actuals
     )
     return stats
 
@@ -287,28 +287,26 @@ my = [x / 100 for x in all_stats["PRMSL_model"]]
 plot_var(tsx, ty, my, 1, 2, "PRMSL")
 
 # Centre left - SST
-if args.xpoint is None or lm_20CR.data.mask[args.ypoint, args.xpoint] == False:
-    offset = 273.15
-    if args.anomalies:
-        offset = 0
+if args.xpoint is None or lm_ERA5.data.mask[args.ypoint, args.xpoint] == False:
+    offset = 0
+    if args.actuals:
+        offset = 273.15
     ty = [x - offset for x in all_stats["SST_target"]]
     my = [x - offset for x in all_stats["SST_model"]]
     plot_var(tsx, ty, my, 1, 1, "SST")
 
 # Bottom left - T2M
-if args.xpoint is None or dm_hukg.data.mask[args.ypoint, args.xpoint] == False:
+offset = 0
+if args.actuals:
     offset = 273.15
-    if args.anomalies:
-        offset = 0
-    ty = [x - offset for x in all_stats["T2M_target"]]
-    my = [x - offset for x in all_stats["T2M_model"]]
-    plot_var(tsx, ty, my, 2, 1, "T2M")
+ty = [x - offset for x in all_stats["T2M_target"]]
+my = [x - offset for x in all_stats["T2M_model"]]
+plot_var(tsx, ty, my, 2, 1, "T2M")
 
 # Top right - PRATE
-if args.xpoint is None or dm_hukg.data.mask[args.ypoint, args.xpoint] == False:
-    ty = [x * 1000 for x in all_stats["PRATE_target"]]
-    my = [x * 1000 for x in all_stats["PRATE_model"]]
-    plot_var(tsx, ty, my, 2, 2, "PRATE")
+ty = [x * 1000 for x in all_stats["PRATE_target"]]
+my = [x * 1000 for x in all_stats["PRATE_model"]]
+plot_var(tsx, ty, my, 2, 2, "PRATE")
 
 
 fig.savefig("multi.png")

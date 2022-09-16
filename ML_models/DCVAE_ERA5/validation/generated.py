@@ -112,7 +112,7 @@ cb = fig.colorbar(
 var = sCube.copy()
 var.data = np.squeeze(generated[0, :, :, 1].numpy())
 var.data = np.ma.masked_where(lm_ERA5.data.mask, var.data, copy=True)
-var = unnormalise(var, "sea_surface_temperature") - 273.15
+var = unnormalise(var, "sea_surface_temperature")
 dmin = np.min(var.data)
 dmax = np.max(var.data)
 ax_sst = fig.add_axes([0.025 / 2, 0.125 / 2, 0.95 / 2, 0.85 / 2])
@@ -136,7 +136,7 @@ var = sCube.copy()
 var.data = np.squeeze(generated[0, :, :, 3].numpy())
 var = unnormalise(var, "total_precipitation") * 1000
 dmax = np.max(var.data)
-dmin = 0
+dmin = np.min(var.data)
 ax_prate = fig.add_axes([0.025 / 2 + 0.5, 0.125 / 2 + 0.5, 0.95 / 2, 0.85 / 2])
 ax_prate.set_axis_off()
 PRATE_img = plotFieldAxes(
@@ -145,7 +145,7 @@ PRATE_img = plotFieldAxes(
     vMax=dmax,
     vMin=dmin,
     lMask=lm_plot,
-    cMap=cmocean.cm.rain,
+    cMap=cmocean.cm.tarn,
 )
 ax_prate_cb = fig.add_axes([0.125 / 2 + 0.5, 0.05 / 2 + 0.5, 0.75 / 2, 0.05 / 2])
 ax_prate_cb.set_axis_off()
@@ -155,7 +155,7 @@ cb = fig.colorbar(
 # Bottom left - T2m
 var = sCube.copy()
 var.data = np.squeeze(generated[0, :, :, 2].numpy())
-var = unnormalise(var, "2m_temperature") - 273.15
+var = unnormalise(var, "2m_temperature")
 dmin = np.min(var.data)
 dmax = np.max(var.data)
 ax_tmp2m = fig.add_axes([0.025 / 2 + 0.5, 0.125 / 2, 0.95 / 2, 0.85 / 2])

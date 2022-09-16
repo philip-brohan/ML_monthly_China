@@ -13,6 +13,7 @@ import argparse
 
 sys.path.append("%s/." % os.path.dirname(__file__))
 from ERA5_monthly_load import load_variable
+from ERA5_monthly_load import load_climatology
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--variable", help="Variable name", type=str, required=True)
@@ -23,6 +24,8 @@ smin = 1000000.0
 for year in range(1981, 2011):
     for month in range(1, 13):
         var = load_variable(args.variable, year, month)
+        clim = load_climatology(args.variable, month)
+        var.data -= clim.data
         vmax = np.amax(var.data)
         vmin = np.amin(var.data)
         smax = max(smax, vmax)

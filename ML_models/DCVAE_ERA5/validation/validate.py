@@ -36,9 +36,9 @@ parser.add_argument("--epoch", help="Epoch", type=int, required=False, default=1
 parser.add_argument("--year", help="Test year", type=int, required=False, default=1969)
 parser.add_argument("--month", help="Test month", type=int, required=False, default=3)
 parser.add_argument(
-    "--anomalies",
-    help="Make monthly anomalies",
-    dest="anomalies",
+    "--actuals",
+    help="Show actuals (rather than anomalies)",
+    dest="actuals",
     default=False,
     action="store_true",
 )
@@ -120,16 +120,15 @@ axb.add_patch(
 varx = sCube.copy()
 varx.data = np.squeeze(ic[:, :, 0].numpy())
 varx = unnormalise(varx, "mean_sea_level_pressure")
-if args.anomalies:
+if args.actuals:
     clim = load_climatology("mean_sea_level_pressure", args.month)
-    varx.data -= clim.data
-    varx /= 100
-    (dmin, dmax) = (-5, 5)
+    varx.data += clim.data
+    (dmin, dmax) = get_range("mean_sea_level_pressure", args.month, anomalies=False)
 else:
-    varx /= 100
-    (dmin, dmax) = get_range("mean_sea_level_pressure", args.month)
-    dmin /= 100
-    dmax /= 100
+    (dmin, dmax) = get_range("mean_sea_level_pressure", args.month, anomalies=True)
+varx /= 100
+dmin /= 100
+dmax /= 100
 ax_prmsl = fig.add_axes([0.025 / 3, 0.125 / 4 + 0.75, 0.95 / 3, 0.85 / 4])
 ax_prmsl.set_axis_off()
 PRMSL_img = plotFieldAxes(
@@ -150,12 +149,10 @@ cb = fig.colorbar(
 vary = sCube.copy()
 vary.data = np.squeeze(encoded[0, :, :, 0].numpy())
 vary = unnormalise(vary, "mean_sea_level_pressure")
-if args.anomalies:
+if args.actuals:
     clim = load_climatology("mean_sea_level_pressure", args.month)
-    vary.data -= clim.data
-    vary /= 100
-else:
-    vary /= 100
+    vary.data += clim.data
+vary /= 100
 ax_prmsl_e = fig.add_axes([0.025 / 3 + 1 / 3, 0.125 / 4 + 0.75, 0.95 / 3, 0.85 / 4])
 ax_prmsl_e.set_axis_off()
 PRMSL_e_img = plotFieldAxes(
@@ -188,18 +185,17 @@ plotScatterAxes(ax_prmsl_s, varx, vary, vMin=dmin, vMax=dmax, bins=None)
 # 2nd left - PRATE original
 varx.data = np.squeeze(ic[:, :, 3].numpy())
 varx = unnormalise(varx, "total_precipitation")
-if args.anomalies:
+if args.actuals:
     clim = load_climatology("total_precipitation", args.month)
-    varx.data -= clim.data
-    varx *= 1000
-    (dmin, dmax) = (-5, 5)
-    pcmap = cmocean.cm.tarn
-else:
-    varx *= 1000
-    (dmin, dmax) = get_range("total_precipitation", args.month)
-    dmin = 0
-    dmax *= 1000
+    varx.data += clim.data
+    (dmin, dmax) = get_range("total_precipitation", args.month, anomalies=False)
     pcmap = cmocean.cm.rain
+else:
+    (dmin, dmax) = get_range("total_precipitation", args.month, anomalies=True)
+    pcmap = cmocean.cm.tarn
+varx *= 1000
+dmin *= 1000
+dmax *= 1000
 ax_prate = fig.add_axes([0.025 / 3, 0.125 / 4 + 0.5, 0.95 / 3, 0.85 / 4])
 ax_prate.set_axis_off()
 PRATE_img = plotFieldAxes(
@@ -219,12 +215,10 @@ cb = fig.colorbar(
 # 2nd centre - PRATE encoded
 vary.data = np.squeeze(encoded[0, :, :, 3].numpy())
 vary = unnormalise(vary, "total_precipitation")
-if args.anomalies:
+if args.actuals:
     clim = load_climatology("total_precipitation", args.month)
-    vary.data -= clim.data
-    vary *= 1000
-else:
-    vary *= 1000
+    vary.data += clim.data
+vary *= 1000
 ax_prate_e = fig.add_axes([0.025 / 3 + 1 / 3, 0.125 / 4 + 0.5, 0.95 / 3, 0.85 / 4])
 ax_prate_e.set_axis_off()
 PRATE_e_img = plotFieldAxes(
@@ -257,15 +251,15 @@ plotScatterAxes(ax_prate_s, varx, vary, vMin=min(dmin, 0.001), vMax=dmax, bins=N
 # 3rd left - T2m original
 varx.data = np.squeeze(ic[:, :, 2].numpy())
 varx = unnormalise(varx, "2m_temperature")
-if args.anomalies:
+if args.actuals:
     clim = load_climatology("2m_temperature", args.month)
-    varx.data -= clim.data
-    (dmin, dmax) = (-5, 5)
-else:
+    varx.data += clim.data
+    (dmin, dmax) = get_range("2m_temperature", args.month, anomalies=False)
     varx -= 273.15
-    (dmin, dmax) = get_range("2m_temperature", args.month)
-    dmin -= 273.15 + 2
-    dmax -= 273.15 - 2
+    dmin -= 273.15
+    dmax -= 273.15
+else:
+    (dmin, dmax) = get_range("2m_temperature", args.month, anomalies=True)
 ax_t2m = fig.add_axes([0.025 / 3, 0.125 / 4 + 0.25, 0.95 / 3, 0.85 / 4])
 ax_t2m.set_axis_off()
 T2m_img = plotFieldAxes(
@@ -285,10 +279,9 @@ cb = fig.colorbar(
 # 3rd centre - T2m encoded
 vary.data = np.squeeze(encoded[0, :, :, 2].numpy())
 vary = unnormalise(vary, "2m_temperature")
-if args.anomalies:
+if args.actuals:
     clim = load_climatology("2m_temperature", args.month)
-    vary.data -= clim.data
-else:
+    vary.data += clim.data
     vary -= 273.15
 ax_t2m_e = fig.add_axes([0.025 / 3 + 1 / 3, 0.125 / 4 + 0.25, 0.95 / 3, 0.85 / 4])
 ax_t2m_e.set_axis_off()
@@ -319,15 +312,15 @@ plotScatterAxes(ax_t2m_s, varx, vary, vMin=dmin, vMax=dmax, bins=None)
 varx.data = np.squeeze(ic[:, :, 1].numpy())
 varx.data = np.ma.masked_where(lm_ERA5.data.mask, varx.data, copy=False)
 varx = unnormalise(varx, "sea_surface_temperature")
-if args.anomalies:
+if args.actuals:
     clim = load_climatology("sea_surface_temperature", args.month)
-    varx.data -= clim.data
-    (dmin, dmax) = (-5, 5)
-else:
+    varx.data += clim.data
+    (dmin, dmax) = get_range("sea_surface_temperature", args.month, anomalies=False)
     varx -= 273.15
-    (dmin, dmax) = get_range("sea_surface_temperature", args.month)
-    dmin -= 273.15 + 2
-    dmax -= 273.15 - 2
+    dmin -= 273.15
+    dmax -= 273.15
+else:
+    (dmin, dmax) = get_range("sea_surface_temperature", args.month, anomalies=True)
 ax_sst = fig.add_axes([0.025 / 3, 0.125 / 4, 0.95 / 3, 0.85 / 4])
 ax_sst.set_axis_off()
 SST_img = plotFieldAxes(
@@ -348,10 +341,9 @@ cb = fig.colorbar(
 vary.data = encoded.numpy()[0, :, :, 1]
 vary.data = np.ma.masked_where(lm_ERA5.data.mask, vary.data, copy=False)
 vary = unnormalise(vary, "sea_surface_temperature")
-if args.anomalies:
+if args.actuals:
     clim = load_climatology("sea_surface_temperature", args.month)
-    vary.data -= clim.data
-else:
+    vary.data += clim.data
     vary -= 273.15
 ax_sst_e = fig.add_axes([0.025 / 3 + 1 / 3, 0.125 / 4, 0.95 / 3, 0.85 / 4])
 ax_sst_e.set_axis_off()

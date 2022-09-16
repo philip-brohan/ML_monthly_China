@@ -79,10 +79,16 @@ def load_variable(variable, year, month):
 
 def load_cList(year, month):
     res = []
-    res.append(load_variable("mean_sea_level_pressure", year, month))
-    res.append(load_variable("sea_surface_temperature", year, month))
-    res.append(load_variable("2m_temperature", year, month))
-    res.append(load_variable("total_precipitation", year, month))
+    for variable in (
+        "mean_sea_level_pressure",
+        "sea_surface_temperature",
+        "2m_temperature",
+        "total_precipitation",
+    ):
+        var = load_variable(variable, year, month)
+        clim = load_climatology(variable, month)
+        var.data -= clim.data
+        res.append(var)
     return res
 
 
@@ -116,14 +122,16 @@ def load_sd_climatology(variable, month):
     return c
 
 
-def get_range(variable, month, cube=None):
-    clim = load_climatology(variable, month)
+def get_range(variable, month, anomalies=True):
     sdc = load_sd_climatology(variable, month)
-    if cube is not None:
-        clim = clim.regrid(cube, iris.analysis.Nearest())
-        sdc = sdc.regrid(cube, iris.analysis.Nearest())
-    v = clim.data + (sdc.data * 2)
-    dmax = np.percentile(v.data[v.mask == False], 95)
-    v = clim.data - (sdc.data * 2)
-    dmin = np.percentile(v.data[v.mask == False], 5)
+    if anomalies:
+        v= sdc.data*2
+        dmax = np.percentile(v.data[v.mask == False], 95)
+        dmin = dmax*-1
+    else:
+        dc = load_climatology(variable, month)
+        v = dc.data + (sdc.data * 2)
+        dmax = np.percentile(v.data[v.mask == False], 95)
+        v = dc.data - (sdc.data * 2)
+        dmin = np.percentile(v.data[v.mask == False], 5)
     return (dmin, dmax)

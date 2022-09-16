@@ -22,7 +22,7 @@ class DCVAE(tf.keras.Model):
         # Latent space dimension
         self.latent_dim = 20
         # Ratio of RMSE to KLD in error
-        self.RMSE_scale = tf.constant(100.0, dtype=tf.float32)
+        self.RMSE_scale = tf.constant(10000.0, dtype=tf.float32)
         # Relative importances of each variable in error
         self.PRMSL_scale = tf.constant(1.0, dtype=tf.float32)
         self.SST_scale = tf.constant(1.0, dtype=tf.float32)
@@ -48,7 +48,7 @@ class DCVAE(tf.keras.Model):
                     activation="elu",
                 ),
                 tf.keras.layers.Conv2D(
-                    filters=40*2,
+                    filters=40 * 2,
                     kernel_size=3,
                     strides=(2, 2),
                     padding="same",
@@ -140,7 +140,9 @@ class DCVAE(tf.keras.Model):
             * self.RMSE_scale
             * self.PRMSL_scale
         )
-        mask = tf.broadcast_to(tf.logical_not(sst_mask), generated[:, :, :, 1].shape)  # Add batch dim
+        mask = tf.broadcast_to(
+            tf.logical_not(sst_mask), generated[:, :, :, 1].shape
+        )  # Add batch dim
         rmse_SST = (
             tf.math.sqrt(
                 tf.reduce_mean(
