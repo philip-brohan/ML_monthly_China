@@ -18,6 +18,7 @@ warnings.filterwarnings("ignore", message=".*partition.*")
 
 sys.path.append("%s/../get_data" % os.path.dirname(__file__))
 from ERA5_monthly_load import load_variable
+from ERA5_monthly_load import load_climatology
 from ERA5_monthly_load import lm_plot
 from ERA5_monthly_load import get_range
 
@@ -29,6 +30,13 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--year", help="Year", type=int, required=True)
 parser.add_argument("--month", help="Integer month", type=int, required=True)
+parser.add_argument(
+    "--actuals",
+    help="Show actuals (rather than anomalies)",
+    dest="actuals",
+    default=False,
+    action="store_true",
+)
 parser.add_argument(
     "--opdir", help="Output directory", type=str, required=False, default="."
 )
@@ -75,8 +83,13 @@ axb.add_patch(
 
 # Top left - PRMSL
 var = load_variable("mean_sea_level_pressure", args.year, args.month)
+if args.actuals:
+    (dmin, dmax) = get_range("mean_sea_level_pressure", args.month, anomalies=False)
+else:
+    clim = load_climatology("mean_sea_level_pressure", args.month)
+    var.data -= clim.data
+    (dmin, dmax) = get_range("mean_sea_level_pressure", args.month, anomalies=True)
 var /= 100
-(dmin, dmax) = get_range("mean_sea_level_pressure", args.month)
 dmin /= 100
 dmax /= 100
 ax_prmsl = fig.add_axes([0.025 / 2, 0.125 / 2 + 0.5, 0.95 / 2, 0.85 / 2])
@@ -97,11 +110,15 @@ cb = fig.colorbar(
 
 # Bottom left - SST
 var = load_variable("sea_surface_temperature", args.year, args.month)
-var -= 273.15
-(dmin, dmax) = get_range("sea_surface_temperature", args.month)
-#(dmin, dmax) = (0, 30)
-dmin -= 273.15
-dmax -= 273.15
+if args.actuals:
+    (dmin, dmax) = get_range("sea_surface_temperature", args.month, anomalies=False)
+    var -= 273.15
+    dmin -= 273.15
+    dmax -= 273.15
+else:
+    clim = load_climatology("sea_surface_temperature", args.month)
+    var.data -= clim.data
+    (dmin, dmax) = get_range("sea_surface_temperature", args.month, anomalies=True)
 ax_sst = fig.add_axes([0.025 / 2, 0.125 / 2, 0.95 / 2, 0.85 / 2])
 ax_sst.set_axis_off()
 SST_img = plotFieldAxes(
@@ -120,8 +137,15 @@ cb = fig.colorbar(
 
 # Top right - PRATE
 var = load_variable("total_precipitation", args.year, args.month)
-(dmin, dmax) = get_range("total_precipitation", args.month, var)
-dmin = 0
+if args.actuals:
+    (dmin, dmax) = get_range("total_precipitation", args.month, anomalies=False)
+    dmin = 0
+    cmap = cmocean.cm.rain
+else:
+    clim = load_climatology("total_precipitation", args.month)
+    var.data -= clim.data
+    (dmin, dmax) = get_range("total_precipitation", args.month, anomalies=True)
+    cmap = cmocean.cm.tarn
 ax_prate = fig.add_axes([0.025 / 2 + 0.5, 0.125 / 2 + 0.5, 0.95 / 2, 0.85 / 2])
 ax_prate.set_axis_off()
 PRATE_img = plotFieldAxes(
@@ -130,7 +154,7 @@ PRATE_img = plotFieldAxes(
     vMax=dmax,
     vMin=dmin,
     lMask=lm_plot,
-    cMap=cmocean.cm.rain,
+    cMap=cmap,
 )
 ax_prate_cb = fig.add_axes([0.125 / 2 + 0.5, 0.05 / 2 + 0.5, 0.75 / 2, 0.05 / 2])
 ax_prate_cb.set_axis_off()
@@ -139,10 +163,15 @@ cb = fig.colorbar(
 )
 # Bottom left - T2m
 var = load_variable("2m_temperature", args.year, args.month)
-var -= 273.15
-(dmin, dmax) = get_range("2m_temperature", args.month)
-dmin -= 273.15
-dmax -= 273.15
+if args.actuals:
+    (dmin, dmax) = get_range("2m_temperature", args.month, anomalies=False)
+    var -= 273.15
+    dmin -= 273.15
+    dmax -= 273.15
+else:
+    clim = load_climatology("2m_temperature", args.month)
+    var.data -= clim.data
+    (dmin, dmax) = get_range("sea_surface_temperature", args.month, anomalies=True)
 ax_tmp2m = fig.add_axes([0.025 / 2 + 0.5, 0.125 / 2, 0.95 / 2, 0.85 / 2])
 ax_tmp2m.set_axis_off()
 TMP2m_img = plotFieldAxes(
