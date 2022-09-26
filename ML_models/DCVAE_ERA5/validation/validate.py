@@ -179,7 +179,7 @@ cb = fig.colorbar(
 ax_prmsl_s = fig.add_axes(
     [0.025 / 3 + 2 / 3 + 0.06, 0.125 / 4 + 0.75, 0.95 / 3 - 0.06, 0.85 / 4]
 )
-plotScatterAxes(ax_prmsl_s, varx, vary, vMin=dmin, vMax=dmax, bins=None)
+plotScatterAxes(ax_prmsl_s, varx, vary, vMin=dmin, vMax=dmax, bins='log')
 
 
 # 2nd left - PRATE original
@@ -245,7 +245,7 @@ cb = fig.colorbar(
 ax_prate_s = fig.add_axes(
     [0.025 / 3 + 2 / 3 + 0.06, 0.125 / 4 + 0.5, 0.95 / 3 - 0.06, 0.85 / 4]
 )
-plotScatterAxes(ax_prate_s, varx, vary, vMin=min(dmin, 0.001), vMax=dmax, bins=None)
+plotScatterAxes(ax_prate_s, varx, vary, vMin=min(dmin, 0.001), vMax=dmax, bins='log')
 
 
 # 3rd left - T2m original
@@ -305,7 +305,7 @@ cb = fig.colorbar(
 ax_t2m_s = fig.add_axes(
     [0.025 / 3 + 2 / 3 + 0.06, 0.125 / 4 + 0.25, 0.95 / 3 - 0.06, 0.85 / 4]
 )
-plotScatterAxes(ax_t2m_s, varx, vary, vMin=dmin, vMax=dmax, bins=None)
+plotScatterAxes(ax_t2m_s, varx, vary, vMin=dmin, vMax=dmax, bins='log')
 
 
 # Bottom left - SST original
@@ -365,7 +365,7 @@ cb = fig.colorbar(
 ax_sst_s = fig.add_axes(
     [0.025 / 3 + 2 / 3 + 0.06, 0.125 / 4, 0.95 / 3 - 0.06, 0.85 / 4]
 )
-plotScatterAxes(ax_sst_s, varx, vary, vMin=dmin, vMax=dmax, bins=None)
+plotScatterAxes(ax_sst_s, varx, vary, vMin=dmin, vMax=dmax, bins='log')
 
 
 fig.savefig("comparison.png")
