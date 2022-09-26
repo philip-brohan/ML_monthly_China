@@ -1,5 +1,5 @@
 # Specify a Deep Convolutional Variational AutoEncoder
-#  for the HadUK-Grid monthly fields.
+#  for the China-region monthly fields.
 
 import os
 import sys
@@ -48,7 +48,7 @@ class DCVAE(tf.keras.Model):
                     activation="elu",
                 ),
                 tf.keras.layers.Conv2D(
-                    filters=40 * 2,
+                    filters=40,
                     kernel_size=3,
                     strides=(2, 2),
                     padding="same",
