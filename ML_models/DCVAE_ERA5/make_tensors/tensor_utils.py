@@ -69,10 +69,10 @@ def tensor_to_cList(tensor, plotCube, sst_mask):
 
 
 nPar = {
-    "mean_sea_level_pressure": (-1670, 1965),
-    "total_precipitation": (-0.034, 0.047),
-    "2m_temperature": (-16, 12),
-    "sea_surface_temperature": (-7.6, 8.7),
+    "mean_sea_level_pressure": (-750, 750),
+    "total_precipitation": (-0.01, 0.01),
+    "2m_temperature": (-20, 10),
+    "sea_surface_temperature": (-3, 3),
 }
 
 
