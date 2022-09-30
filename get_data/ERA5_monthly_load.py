@@ -60,6 +60,10 @@ lm_ERA5.data.data[np.where(lm_ERA5.data.mask == False)] = 1
 
 
 def load_variable(variable, year, month):
+    if variable=='cbrt_precipitation':
+        varC = load_variable('total_precipitation',year,month)
+        varC.data = np.cbrt(varC.data)
+        return varC
     fname = "%s/ERA5/monthly/reanalysis/%04d/%s.nc" % (
         os.getenv("SCRATCH"),
         year,
@@ -83,7 +87,7 @@ def load_cList(year, month):
         "mean_sea_level_pressure",
         "sea_surface_temperature",
         "2m_temperature",
-        "total_precipitation",
+        "cbrt_precipitation",
     ):
         var = load_variable(variable, year, month)
         clim = load_climatology(variable, month)

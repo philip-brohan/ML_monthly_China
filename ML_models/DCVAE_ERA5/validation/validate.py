@@ -184,14 +184,14 @@ plotScatterAxes(ax_prmsl_s, varx, vary, vMin=dmin, vMax=dmax, bins='log')
 
 # 2nd left - PRATE original
 varx.data = np.squeeze(ic[:, :, 3].numpy())
-varx = unnormalise(varx, "total_precipitation")
+varx = unnormalise(varx, "cbrt_precipitation")
 if args.actuals:
-    clim = load_climatology("total_precipitation", args.month)
+    clim = load_climatology("cbrt_precipitation", args.month)
     varx.data += clim.data
-    (dmin, dmax) = get_range("total_precipitation", args.month, anomalies=False)
+    (dmin, dmax) = get_range("cbrt_precipitation", args.month, anomalies=False)
     pcmap = cmocean.cm.rain
 else:
-    (dmin, dmax) = get_range("total_precipitation", args.month, anomalies=True)
+    (dmin, dmax) = get_range("cbrt_precipitation", args.month, anomalies=True)
     pcmap = cmocean.cm.tarn
 varx *= 1000
 dmin *= 1000
@@ -214,9 +214,9 @@ cb = fig.colorbar(
 
 # 2nd centre - PRATE encoded
 vary.data = np.squeeze(encoded[0, :, :, 3].numpy())
-vary = unnormalise(vary, "total_precipitation")
+vary = unnormalise(vary, "cbrt_precipitation")
 if args.actuals:
-    clim = load_climatology("total_precipitation", args.month)
+    clim = load_climatology("cbrt_precipitation", args.month)
     vary.data += clim.data
 vary *= 1000
 ax_prate_e = fig.add_axes([0.025 / 3 + 1 / 3, 0.125 / 4 + 0.5, 0.95 / 3, 0.85 / 4])

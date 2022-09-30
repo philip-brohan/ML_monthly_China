@@ -41,7 +41,7 @@ def cList_to_tensor(cL, sst_mask, extrapolate=True):
     if extrapolate:
         d2 = extrapolate_missing(d2, nsteps=100, scale=1.0)
     d3 = normalise(cL[2], "2m_temperature")
-    d4 = normalise(cL[3], "total_precipitation")
+    d4 = normalise(cL[3], "cbrt_precipitation")
     ic = np.stack((d1.data, d2.data, d3.data, d4.data), axis=2)
     ict = tf.convert_to_tensor(ic.data, np.float32)
     return ict
@@ -63,14 +63,15 @@ def tensor_to_cList(tensor, plotCube, sst_mask):
     d3.var_name = "2m_temperature"
     d4 = plotCube.copy()
     d4.data = np.squeeze(tensor[:, :, 3].numpy())
-    d4 = unnormalise(d4, "total_precipitation")
-    d4.var_name = "total_precipitation"
+    d4 = unnormalise(d4, "cbrt_precipitation")
+    d4.var_name = "cbrt_precipitation"
     return [d1, d2, d3, d4]
 
 
 nPar = {
     "mean_sea_level_pressure": (-750, 750),
     "total_precipitation": (-0.01, 0.01),
+    "cbrt_precipitation": (-0.1, 0.1),
     "2m_temperature": (-20, 10),
     "sea_surface_temperature": (-3, 3),
 }

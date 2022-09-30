@@ -20,6 +20,7 @@ from matplotlib.lines import Line2D
 
 sys.path.append("%s/." % os.path.dirname(__file__))
 from localise import LSCRATCH
+from autoencoderModel import DCVAE
 
 import argparse
 
@@ -44,6 +45,9 @@ parser.add_argument(
     "--max_epoch", help="Max epoch to plot", type=int, required=False, default=None
 )
 args = parser.parse_args()
+
+# Instantiate the model - we're not going to use it, do want some scaling factors
+autoencoder = DCVAE()
 
 
 # Load the history
@@ -76,7 +80,8 @@ def loadHistory(LSC):
         n_epochs = min(args.max_epoch, n_epochs)
     hts["epoch"] = list(range(n_epochs))[1:]
     for key in history:
-        hts[key] = [math.log(abs(t)) for t in history[key][1:n_epochs]]
+        hts[key] = [abs(t) for t in history[key][1:n_epochs]]
+    for key in ('Train_logpz','Train_logqz_x','Test_logpz','Test_logqz_x'):
         ymax = max(ymax, max(hts[key]))
         ymin = min(ymin, min(hts[key]))
 
@@ -86,7 +91,7 @@ def loadHistory(LSC):
 (hts, ymax, ymin, epoch) = loadHistory(LSCRATCH)
 
 if args.comparator is not None:
-    LSC = "%s/ML_monthly_UK/%s" % (os.getenv("SCRATCH"), args.comparator)
+    LSC = "%s/ML_monthly_China/%s" % (os.getenv("SCRATCH"), args.comparator)
     (chts, cymax, cymin, cepoch) = loadHistory(LSC)
     epoch = max(epoch, cepoch)
     ymax = max(ymax, cymax)
@@ -144,52 +149,69 @@ def addLine(ax, dta, key, col, z, rscale=1):
 
 
 # Top left - PRMSL
+scaleF = 100/(autoencoder.RMSE_scale*autoencoder.PRMSL_scale)
+ymaxL = max(100,max(hts['Train_PRMSL']+hts['Test_PRMSL']))
+if args.comparator is not None:
+    ymaxL = max(ymaxL,max(chts['Train_PRMSL']+chts['Test_PRMSL']))
 ax_prmsl = fig.add_axes(
-    [0.055, 0.55, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(ymin, ymax)
+    [0.055, 0.55, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(0, ymaxL*scaleF)
 )
 ax_prmsl.set_ylabel("PRMSL")
 ax_prmsl.set_xlabel("epoch")
 ax_prmsl.grid(color=(0, 0, 0, 1), linestyle="-", linewidth=0.1)
-addLine(ax_prmsl, hts, "Train_PRMSL", (1, 0.5, 0.5, 1), 10)
-addLine(ax_prmsl, hts, "Test_PRMSL", (1, 0, 0, 1), 20)
+
+addLine(ax_prmsl, hts, "Train_PRMSL", (1, 0.5, 0.5, 1), 10,rscale=scaleF)
+addLine(ax_prmsl, hts, "Test_PRMSL", (1, 0, 0, 1), 20,rscale=scaleF)
 if args.comparator is not None:
-    addLine(ax_prmsl, chts, "Train_PRMSL", (0.5, 0.5, 1, 1), 10)
-    addLine(ax_prmsl, chts, "Test_PRMSL", (0, 0, 1, 1), 20)
+    addLine(ax_prmsl, chts, "Train_PRMSL", (0.5, 0.5, 1, 1), 10,rscale=scaleF)
+    addLine(ax_prmsl, chts, "Test_PRMSL", (0, 0, 1, 1), 20,rscale=scaleF)
 
 # Bottom left - SST
-ax_sst = fig.add_axes([0.055, 0.06, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(ymin, ymax))
+scaleF = 100/(autoencoder.RMSE_scale*autoencoder.SST_scale)
+ymaxL = max(100,max(hts['Train_SST']+hts['Test_SST']))
+if args.comparator is not None:
+    ymaxL = max(ymaxL,max(chts['Train_SST']+chts['Test_SST']))
+ax_sst = fig.add_axes([0.055, 0.06, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(0, ymaxL*scaleF))
 ax_sst.set_ylabel("SST")
 ax_sst.set_xlabel("epoch")
 ax_sst.grid(color=(0, 0, 0, 1), linestyle="-", linewidth=0.1)
-addLine(ax_sst, hts, "Train_SST", (1, 0.5, 0.5, 1), 10)
-addLine(ax_sst, hts, "Test_SST", (1, 0, 0, 1), 20)
+addLine(ax_sst, hts, "Train_SST", (1, 0.5, 0.5, 1), 10,rscale=scaleF)
+addLine(ax_sst, hts, "Test_SST", (1, 0, 0, 1), 20,rscale=scaleF)
 if args.comparator is not None:
-    addLine(ax_sst, chts, "Train_SST", (0.5, 0.5, 1, 1), 10)
-    addLine(ax_sst, chts, "Train_SST", (0, 0, 1, 1), 20)
+    addLine(ax_sst, chts, "Train_SST", (0.5, 0.5, 1, 1), 10,rscale=scaleF)
+    addLine(ax_sst, chts, "Test_SST", (0, 0, 1, 1), 20,rscale=scaleF)
 
 # Top centre - T2M
-ax_t2m = fig.add_axes([0.385, 0.55, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(ymin, ymax))
+scaleF = 100/(autoencoder.RMSE_scale*autoencoder.T2M_scale)
+ymaxL = max(100,max(hts['Train_T2M']+hts['Test_T2M']))
+if args.comparator is not None:
+    ymaxL = max(ymaxL,max(chts['Train_T2M']+chts['Test_T2M']))
+ax_t2m = fig.add_axes([0.385, 0.55, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(0, ymaxL*scaleF))
 ax_t2m.set_ylabel("T2M")
 ax_t2m.set_xlabel("epoch")
 ax_t2m.grid(color=(0, 0, 0, 1), linestyle="-", linewidth=0.1)
-addLine(ax_t2m, hts, "Train_T2M", (1, 0.5, 0.5, 1), 10)
-addLine(ax_t2m, hts, "Test_T2M", (1, 0, 0, 1), 20)
+addLine(ax_t2m, hts, "Train_T2M", (1, 0.5, 0.5, 1), 10,rscale=scaleF)
+addLine(ax_t2m, hts, "Test_T2M", (1, 0, 0, 1), 20,rscale=scaleF)
 if args.comparator is not None:
-    addLine(ax_t2m, chts, "Train_T2M", (0.5, 0.5, 1, 1), 10)
-    addLine(ax_t2m, chts, "Test_T2M", (0, 0, 1, 1), 20)
+    addLine(ax_t2m, chts, "Train_T2M", (0.5, 0.5, 1, 1), 10,rscale=scaleF)
+    addLine(ax_t2m, chts, "Test_T2M", (0, 0, 1, 1), 20,rscale=scaleF)
 
 # Bottom centre - PRATE
+scaleF = 100/(autoencoder.RMSE_scale*autoencoder.PRATE_scale)
+ymaxL = max(100,max(hts['Train_PRATE']+hts['Test_PRATE']))
+if args.comparator is not None:
+    ymaxL = max(ymaxL,max(chts['Train_PRATE']+chts['Test_PRATE']))
 ax_prate = fig.add_axes(
-    [0.385, 0.06, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(ymin, ymax)
+    [0.385, 0.06, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(0, ymaxL*scaleF)
 )
 ax_prate.set_ylabel("PRATE")
 ax_prate.set_xlabel("epoch")
 ax_prate.grid(color=(0, 0, 0, 1), linestyle="-", linewidth=0.1)
-addLine(ax_prate, hts, "Train_PRATE", (1, 0.5, 0.5, 1), 10)
-addLine(ax_prate, hts, "Test_PRATE", (1, 0, 0, 1), 20)
+addLine(ax_prate, hts, "Train_PRATE", (1, 0.5, 0.5, 1), 10,rscale=scaleF)
+addLine(ax_prate, hts, "Test_PRATE", (1, 0, 0, 1), 20,rscale=scaleF)
 if args.comparator is not None:
-    addLine(ax_prate, chts, "Train_PRATE", (0.5, 0.5, 1, 1), 10)
-    addLine(ax_prate, chts, "Test_PRATE", (0, 0, 1, 1), 20)
+    addLine(ax_prate, chts, "Train_PRATE", (0.5, 0.5, 1, 1), 10,rscale=scaleF)
+    addLine(ax_prate, chts, "Test_PRATE", (0, 0, 1, 1), 20,rscale=scaleF)
 
 # Top right - logpz
 ax_lpz = fig.add_axes([0.715, 0.55, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(ymin, ymax))

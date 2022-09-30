@@ -22,11 +22,11 @@ def is_done(year, month, purpose):
 
 
 count = 0
-for year in range(1959, 2010):
+for year in range(1959, 2022):
     for month in range(1, 13):
         count += 1
         purpose = "training"
-        if count % 10 == 0:
+        if count % 11 == 0:
             purpose = "test"
         if is_done(year, month, purpose):
             continue

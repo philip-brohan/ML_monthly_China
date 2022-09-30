@@ -106,10 +106,10 @@ ax_sst.set_xlabel("SST")
 SST_hist = ax_sst.hist(d1.data.flatten(), bins=100, range=(0, 1))
 
 # Top right - PRATE
-var = load_variable("total_precipitation", args.year, args.month)
-clim = load_climatology("total_precipitation", args.month)
+var = load_variable("cbrt_precipitation", args.year, args.month)
+clim = load_climatology("cbrt_precipitation", args.month)
 var.data -= clim.data
-d1 = normalise(var, "total_precipitation")
+d1 = normalise(var, "cbrt_precipitation")
 ax_prate = fig.add_axes(
     [0.025 / 2 + 0.5 + 0.025, 0.125 / 2 + 0.5, 0.95 / 2 - 0.025, 0.85 / 2]
 )

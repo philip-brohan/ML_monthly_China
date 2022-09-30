@@ -14,6 +14,7 @@ for month in range(1, 13):
         "sea_surface_temperature",
         "2m_temperature",
         "total_precipitation",
+        "cbrt_precipitation",
     ]:
         opfile = "%s/ERA5/monthly/climatology/%s_%02d.nc" % (
             os.getenv("SCRATCH"),

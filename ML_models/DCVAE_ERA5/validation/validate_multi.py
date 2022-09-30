@@ -50,6 +50,13 @@ parser.add_argument(
     default=False,
     action="store_true",
 )
+parser.add_argument(
+    "--training",
+    help="Use training months (not test months)",
+    dest="training",
+    default=False,
+    action="store_true",
+)
 args = parser.parse_args()
 
 sys.path.append("%s/../../../get_data" % os.path.dirname(__file__))
@@ -67,8 +74,11 @@ from autoencoderModel import DCVAE
 from makeDataset import getDataset
 
 # Set up the test data
+purpose = 'test'
+if args.training:
+    purpose='training'
 testData = getDataset(
-    purpose="test", startyear=args.startyear, endyear=args.endyear, shuffle=False
+    purpose=purpose, startyear=args.startyear, endyear=args.endyear, shuffle=False
 )
 testData = testData.batch(1)
 
@@ -151,11 +161,11 @@ def compute_stats(model, x):
     )
     vt = x[0][0, :, :, 3].numpy()
     stats["PRATE_target"] = field_to_scalar(
-        vt, "total_precipitation", month, None, actuals=args.actuals
+        vt, "cbrt_precipitation", month, None, actuals=args.actuals
     )
     vm = generated[0, :, :, 3].numpy()
     stats["PRATE_model"] = field_to_scalar(
-        vm, "total_precipitation", month, None, actuals=args.actuals
+        vm, "cbrt_precipitation", month, None, actuals=args.actuals
     )
     return stats
 

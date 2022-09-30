@@ -40,7 +40,7 @@ if nImagesInEpoch is None:
     nImagesInEpoch = nTrainingImages
 
 # Dataset parameters
-bufferSize = 100  # Already shuffled data, so not so important
+bufferSize = 1000  # Already shuffled data, so not so important
 batchSize = 32  # Arbitrary
 
 
@@ -49,7 +49,7 @@ with strategy.scope():
 
     # Set up the training data
     trainingData = getDataset(
-        purpose="training", nImages=nTrainingImages, shuffle=True, cache=False
+        purpose="training", nImages=nTrainingImages, shuffle=True, cache=True
     ).repeat(nRepeatsPerEpoch)
     trainingData = trainingData.shuffle(bufferSize).batch(batchSize)
     trainingData = strategy.experimental_distribute_dataset(trainingData)
@@ -124,7 +124,7 @@ with strategy.scope():
         train_loss.assign(0.0)
         validation_batch_count = 0
         for batch in validationData:
-            per_replica_losses = strategy.run(autoencoder.compute_loss, args=(batch,))
+            per_replica_losses = strategy.run(autoencoder.compute_loss, args=(batch,False))
             batch_losses = strategy.reduce(
                 tf.distribute.ReduceOp.MEAN, per_replica_losses, axis=None
             )
@@ -147,7 +147,7 @@ with strategy.scope():
         test_loss.assign(0.0)
         test_batch_count = 0
         for batch in testData:
-            per_replica_losses = strategy.run(autoencoder.compute_loss, args=(batch,))
+            per_replica_losses = strategy.run(autoencoder.compute_loss, args=(batch,False))
             batch_losses = strategy.reduce(
                 tf.distribute.ReduceOp.MEAN, per_replica_losses, axis=None
             )
@@ -209,27 +209,35 @@ with strategy.scope():
         # Report progress
         print("Epoch: {}".format(epoch))
         print(
-            "PRMSL  : {:>9.3f}, {:>9.3f}".format(
+            "PRMSL  : {:>9.3f}, {:>9.3f}, {:>6.1f}, {:>6.1f}".format(
                 train_rmse_PRMSL.numpy() / validation_batch_count,
                 test_rmse_PRMSL.numpy() / test_batch_count,
+                100*train_rmse_PRMSL.numpy() / (validation_batch_count*autoencoder.RMSE_scale*autoencoder.PRMSL_scale),
+                100*test_rmse_PRMSL.numpy() / (test_batch_count*autoencoder.RMSE_scale*autoencoder.PRMSL_scale),
             )
         )
         print(
-            "SST    : {:>9.3f}, {:>9.3f}".format(
+            "SST    : {:>9.3f}, {:>9.3f}, {:>6.1f}, {:>6.1f}".format(
                 train_rmse_SST.numpy() / validation_batch_count,
                 test_rmse_SST.numpy() / test_batch_count,
+                100*train_rmse_SST.numpy() / (validation_batch_count*autoencoder.RMSE_scale*autoencoder.SST_scale),
+                100*test_rmse_SST.numpy() / (test_batch_count*autoencoder.RMSE_scale*autoencoder.SST_scale),
             )
         )
         print(
-            "T2m    : {:>9.3f}, {:>9.3f}".format(
+            "T2m    : {:>9.3f}, {:>9.3f}, {:>6.1f}, {:>6.1f}".format(
                 train_rmse_T2M.numpy() / validation_batch_count,
                 test_rmse_T2M.numpy() / test_batch_count,
+                100*train_rmse_T2M.numpy() / (validation_batch_count*autoencoder.RMSE_scale*autoencoder.T2M_scale),
+                100*test_rmse_T2M.numpy() / (test_batch_count*autoencoder.RMSE_scale*autoencoder.T2M_scale),
             )
         )
         print(
-            "PRATE  : {:>9.3f}, {:>9.3f}".format(
+            "PRATE  : {:>9.3f}, {:>9.3f}, {:>6.1f}, {:>6.1f}".format(
                 train_rmse_PRATE.numpy() / validation_batch_count,
                 test_rmse_PRATE.numpy() / test_batch_count,
+                100*train_rmse_PRATE.numpy() / (validation_batch_count*autoencoder.RMSE_scale*autoencoder.PRATE_scale),
+                100*test_rmse_PRATE.numpy() / (test_batch_count*autoencoder.RMSE_scale*autoencoder.PRATE_scale),
             )
         )
         print(
