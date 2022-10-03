@@ -25,4 +25,4 @@ dependencies:
   - pip
   - pip:
   # For bilinear interpolation
-    - tensorflow-addons==0.17
+    - tensorflow-addons==0.14

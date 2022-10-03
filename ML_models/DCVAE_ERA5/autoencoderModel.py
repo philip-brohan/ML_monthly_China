@@ -20,7 +20,7 @@ class DCVAE(tf.keras.Model):
 
         # Hyperparameters
         # Latent space dimension
-        self.latent_dim = 10
+        self.latent_dim = 100
         # Ratio of RMSE to KLD in error
         self.RMSE_scale = tf.constant(1000.0, dtype=tf.float32)
         # Relative importances of each variable in error
