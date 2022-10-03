@@ -124,7 +124,9 @@ with strategy.scope():
         train_loss.assign(0.0)
         validation_batch_count = 0
         for batch in validationData:
-            per_replica_losses = strategy.run(autoencoder.compute_loss, args=(batch,False))
+            per_replica_losses = strategy.run(
+                autoencoder.compute_loss, args=(batch, False)
+            )
             batch_losses = strategy.reduce(
                 tf.distribute.ReduceOp.MEAN, per_replica_losses, axis=None
             )
@@ -147,7 +149,9 @@ with strategy.scope():
         test_loss.assign(0.0)
         test_batch_count = 0
         for batch in testData:
-            per_replica_losses = strategy.run(autoencoder.compute_loss, args=(batch,False))
+            per_replica_losses = strategy.run(
+                autoencoder.compute_loss, args=(batch, False)
+            )
             batch_losses = strategy.reduce(
                 tf.distribute.ReduceOp.MEAN, per_replica_losses, axis=None
             )
@@ -170,16 +174,48 @@ with strategy.scope():
         autoencoder.save_weights("%s/ckpt" % save_dir)
         with logfile_writer.as_default():
             tf.summary.scalar(
-                "Train_PRMSL", train_rmse_PRMSL / validation_batch_count, step=epoch
+                "Train_PRMSL",
+                100
+                * train_rmse_PRMSL
+                / (
+                    validation_batch_count
+                    * autoencoder.RMSE_scale
+                    * autoencoder.PRMSL_scale
+                ),
+                step=epoch,
             )
             tf.summary.scalar(
-                "Train_SST", train_rmse_SST / validation_batch_count, step=epoch
+                "Train_SST",
+                100
+                * train_rmse_SST
+                / (
+                    validation_batch_count
+                    * autoencoder.RMSE_scale
+                    * autoencoder.SST_scale
+                ),
+                step=epoch,
             )
             tf.summary.scalar(
-                "Train_T2M", train_rmse_T2M / validation_batch_count, step=epoch
+                "Train_T2M",
+                100
+                * train_rmse_T2M
+                / (
+                    validation_batch_count
+                    * autoencoder.RMSE_scale
+                    * autoencoder.T2M_scale
+                ),
+                step=epoch,
             )
             tf.summary.scalar(
-                "Train_PRATE", train_rmse_PRATE / validation_batch_count, step=epoch
+                "Train_PRATE",
+                100
+                * train_rmse_PRATE
+                / (
+                    validation_batch_count
+                    * autoencoder.RMSE_scale
+                    * autoencoder.PRATE_scale
+                ),
+                step=epoch,
             )
             tf.summary.scalar(
                 "Train_logpz", train_logpz / validation_batch_count, step=epoch
@@ -191,12 +227,32 @@ with strategy.scope():
                 "Train_loss", train_loss / validation_batch_count, step=epoch
             )
             tf.summary.scalar(
-                "Test_PRMSL", test_rmse_PRMSL / test_batch_count, step=epoch
+                "Test_PRMSL",
+                100
+                * test_rmse_PRMSL
+                / (test_batch_count * autoencoder.RMSE_scale * autoencoder.PRMSL_scale),
+                step=epoch,
             )
-            tf.summary.scalar("Test_SST", test_rmse_SST / test_batch_count, step=epoch)
-            tf.summary.scalar("Test_T2M", test_rmse_T2M / test_batch_count, step=epoch)
             tf.summary.scalar(
-                "Test_PRATE", test_rmse_PRATE / test_batch_count, step=epoch
+                "Test_SST",
+                100
+                * test_rmse_SST
+                / (test_batch_count * autoencoder.RMSE_scale * autoencoder.SST_scale),
+                step=epoch,
+            )
+            tf.summary.scalar(
+                "Test_T2M",
+                100
+                * test_rmse_T2M
+                / (test_batch_count * autoencoder.RMSE_scale * autoencoder.T2M_scale),
+                step=epoch,
+            )
+            tf.summary.scalar(
+                "Test_PRATE",
+                100
+                * test_rmse_PRATE
+                / (test_batch_count * autoencoder.RMSE_scale * autoencoder.PRATE_scale),
+                step=epoch,
             )
             tf.summary.scalar("Test_logpz", test_logpz / test_batch_count, step=epoch)
             tf.summary.scalar(
@@ -212,32 +268,64 @@ with strategy.scope():
             "PRMSL  : {:>9.3f}, {:>9.3f}, {:>6.1f}, {:>6.1f}".format(
                 train_rmse_PRMSL.numpy() / validation_batch_count,
                 test_rmse_PRMSL.numpy() / test_batch_count,
-                100*train_rmse_PRMSL.numpy() / (validation_batch_count*autoencoder.RMSE_scale*autoencoder.PRMSL_scale),
-                100*test_rmse_PRMSL.numpy() / (test_batch_count*autoencoder.RMSE_scale*autoencoder.PRMSL_scale),
+                100
+                * train_rmse_PRMSL.numpy()
+                / (
+                    validation_batch_count
+                    * autoencoder.RMSE_scale
+                    * autoencoder.PRMSL_scale
+                ),
+                100
+                * test_rmse_PRMSL.numpy()
+                / (test_batch_count * autoencoder.RMSE_scale * autoencoder.PRMSL_scale),
             )
         )
         print(
             "SST    : {:>9.3f}, {:>9.3f}, {:>6.1f}, {:>6.1f}".format(
                 train_rmse_SST.numpy() / validation_batch_count,
                 test_rmse_SST.numpy() / test_batch_count,
-                100*train_rmse_SST.numpy() / (validation_batch_count*autoencoder.RMSE_scale*autoencoder.SST_scale),
-                100*test_rmse_SST.numpy() / (test_batch_count*autoencoder.RMSE_scale*autoencoder.SST_scale),
+                100
+                * train_rmse_SST.numpy()
+                / (
+                    validation_batch_count
+                    * autoencoder.RMSE_scale
+                    * autoencoder.SST_scale
+                ),
+                100
+                * test_rmse_SST.numpy()
+                / (test_batch_count * autoencoder.RMSE_scale * autoencoder.SST_scale),
             )
         )
         print(
             "T2m    : {:>9.3f}, {:>9.3f}, {:>6.1f}, {:>6.1f}".format(
                 train_rmse_T2M.numpy() / validation_batch_count,
                 test_rmse_T2M.numpy() / test_batch_count,
-                100*train_rmse_T2M.numpy() / (validation_batch_count*autoencoder.RMSE_scale*autoencoder.T2M_scale),
-                100*test_rmse_T2M.numpy() / (test_batch_count*autoencoder.RMSE_scale*autoencoder.T2M_scale),
+                100
+                * train_rmse_T2M.numpy()
+                / (
+                    validation_batch_count
+                    * autoencoder.RMSE_scale
+                    * autoencoder.T2M_scale
+                ),
+                100
+                * test_rmse_T2M.numpy()
+                / (test_batch_count * autoencoder.RMSE_scale * autoencoder.T2M_scale),
             )
         )
         print(
             "PRATE  : {:>9.3f}, {:>9.3f}, {:>6.1f}, {:>6.1f}".format(
                 train_rmse_PRATE.numpy() / validation_batch_count,
                 test_rmse_PRATE.numpy() / test_batch_count,
-                100*train_rmse_PRATE.numpy() / (validation_batch_count*autoencoder.RMSE_scale*autoencoder.PRATE_scale),
-                100*test_rmse_PRATE.numpy() / (test_batch_count*autoencoder.RMSE_scale*autoencoder.PRATE_scale),
+                100
+                * train_rmse_PRATE.numpy()
+                / (
+                    validation_batch_count
+                    * autoencoder.RMSE_scale
+                    * autoencoder.PRATE_scale
+                ),
+                100
+                * test_rmse_PRATE.numpy()
+                / (test_batch_count * autoencoder.RMSE_scale * autoencoder.PRATE_scale),
             )
         )
         print(

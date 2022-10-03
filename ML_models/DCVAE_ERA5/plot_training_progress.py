@@ -20,13 +20,15 @@ from matplotlib.lines import Line2D
 
 sys.path.append("%s/." % os.path.dirname(__file__))
 from localise import LSCRATCH
-from autoencoderModel import DCVAE
 
 import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--comparator", help="Comparison model name", type=str, required=False, default=None
+)
+parser.add_argument(
+    "--selfc", help="Compare with previous run", type=int, required=False, default=None
 )
 parser.add_argument(
     "--rscale",
@@ -46,9 +48,6 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-# Instantiate the model - we're not going to use it, do want some scaling factors
-autoencoder = DCVAE()
-
 
 # Load the history
 def my_summary_iterator(path):
@@ -56,21 +55,23 @@ def my_summary_iterator(path):
         yield event_pb2.Event.FromString(r)
 
 
-def loadHistory(LSC):
+def loadHistory(LSC, offset=-1):
     history = {}
     summary_dir = "%s/models/Training_log" % LSC
-    for filename in os.listdir(summary_dir):
-        path = os.path.join(summary_dir, filename)
-        for event in my_summary_iterator(path):
-            for value in event.summary.value:
-                t = tensor_util.MakeNdarray(value.tensor)
-                if not value.tag in history.keys():
-                    history[value.tag] = []
-                if len(history[value.tag]) < event.step + 1:
-                    history[value.tag].extend(
-                        [0.0] * (event.step + 1 - len(history[value.tag]))
-                    )
-                history[value.tag][event.step] = t.item()
+    Rfiles = os.listdir(summary_dir)
+    Rfiles.sort(key=lambda x: os.path.getmtime(os.path.join(summary_dir, x)))
+    filename = Rfiles[offset]
+    path = os.path.join(summary_dir, filename)
+    for event in my_summary_iterator(path):
+        for value in event.summary.value:
+            t = tensor_util.MakeNdarray(value.tensor)
+            if not value.tag in history.keys():
+                history[value.tag] = []
+            if len(history[value.tag]) < event.step + 1:
+                history[value.tag].extend(
+                    [0.0] * (event.step + 1 - len(history[value.tag]))
+                )
+            history[value.tag][event.step] = t.item()
 
     ymax = 0
     ymin = 1000000
@@ -81,7 +82,7 @@ def loadHistory(LSC):
     hts["epoch"] = list(range(n_epochs))[1:]
     for key in history:
         hts[key] = [abs(t) for t in history[key][1:n_epochs]]
-    for key in ('Train_logpz','Train_logqz_x','Test_logpz','Test_logqz_x'):
+    for key in ("Train_logpz", "Train_logqz_x", "Test_logpz", "Test_logqz_x"):
         ymax = max(ymax, max(hts[key]))
         ymin = min(ymin, min(hts[key]))
 
@@ -89,6 +90,12 @@ def loadHistory(LSC):
 
 
 (hts, ymax, ymin, epoch) = loadHistory(LSCRATCH)
+
+if args.selfc is not None:
+    (chts, cymax, cymin, cepoch) = loadHistory(LSCRATCH, -1 - args.selfc)
+    epoch = max(epoch, cepoch)
+    ymax = max(ymax, cymax)
+    ymin = min(ymin, cymin)
 
 if args.comparator is not None:
     LSC = "%s/ML_monthly_China/%s" % (os.getenv("SCRATCH"), args.comparator)
@@ -149,69 +156,70 @@ def addLine(ax, dta, key, col, z, rscale=1):
 
 
 # Top left - PRMSL
-scaleF = 100/(autoencoder.RMSE_scale*autoencoder.PRMSL_scale)
-ymaxL = max(100,max(hts['Train_PRMSL']+hts['Test_PRMSL']))
-if args.comparator is not None:
-    ymaxL = max(ymaxL,max(chts['Train_PRMSL']+chts['Test_PRMSL']))
-ax_prmsl = fig.add_axes(
-    [0.055, 0.55, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(0, ymaxL*scaleF)
-)
+
+ymaxL = max(100, max(hts["Train_PRMSL"] + hts["Test_PRMSL"]))
+if args.comparator is not None or args.selfc is not None:
+    ymaxL = max(ymaxL, max(chts["Train_PRMSL"] + chts["Test_PRMSL"]))
+if args.ymax is not None:
+    ymaxL = args.ymax
+ax_prmsl = fig.add_axes([0.055, 0.55, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(0, ymaxL))
 ax_prmsl.set_ylabel("PRMSL")
 ax_prmsl.set_xlabel("epoch")
 ax_prmsl.grid(color=(0, 0, 0, 1), linestyle="-", linewidth=0.1)
 
-addLine(ax_prmsl, hts, "Train_PRMSL", (1, 0.5, 0.5, 1), 10,rscale=scaleF)
-addLine(ax_prmsl, hts, "Test_PRMSL", (1, 0, 0, 1), 20,rscale=scaleF)
-if args.comparator is not None:
-    addLine(ax_prmsl, chts, "Train_PRMSL", (0.5, 0.5, 1, 1), 10,rscale=scaleF)
-    addLine(ax_prmsl, chts, "Test_PRMSL", (0, 0, 1, 1), 20,rscale=scaleF)
+addLine(ax_prmsl, hts, "Train_PRMSL", (1, 0.5, 0.5, 1), 10)
+addLine(ax_prmsl, hts, "Test_PRMSL", (1, 0, 0, 1), 20)
+if args.comparator is not None or args.selfc is not None:
+    addLine(ax_prmsl, chts, "Train_PRMSL", (0.5, 0.5, 1, 1), 10)
+    addLine(ax_prmsl, chts, "Test_PRMSL", (0, 0, 1, 1), 20)
 
 # Bottom left - SST
-scaleF = 100/(autoencoder.RMSE_scale*autoencoder.SST_scale)
-ymaxL = max(100,max(hts['Train_SST']+hts['Test_SST']))
-if args.comparator is not None:
-    ymaxL = max(ymaxL,max(chts['Train_SST']+chts['Test_SST']))
-ax_sst = fig.add_axes([0.055, 0.06, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(0, ymaxL*scaleF))
+ymaxL = max(100, max(hts["Train_SST"] + hts["Test_SST"]))
+if args.comparator is not None or args.selfc is not None:
+    ymaxL = max(ymaxL, max(chts["Train_SST"] + chts["Test_SST"]))
+if args.ymax is not None:
+    ymaxL = args.ymax
+ax_sst = fig.add_axes([0.055, 0.06, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(0, ymaxL))
 ax_sst.set_ylabel("SST")
 ax_sst.set_xlabel("epoch")
 ax_sst.grid(color=(0, 0, 0, 1), linestyle="-", linewidth=0.1)
-addLine(ax_sst, hts, "Train_SST", (1, 0.5, 0.5, 1), 10,rscale=scaleF)
-addLine(ax_sst, hts, "Test_SST", (1, 0, 0, 1), 20,rscale=scaleF)
-if args.comparator is not None:
-    addLine(ax_sst, chts, "Train_SST", (0.5, 0.5, 1, 1), 10,rscale=scaleF)
-    addLine(ax_sst, chts, "Test_SST", (0, 0, 1, 1), 20,rscale=scaleF)
+addLine(ax_sst, hts, "Train_SST", (1, 0.5, 0.5, 1), 10)
+addLine(ax_sst, hts, "Test_SST", (1, 0, 0, 1), 20)
+if args.comparator is not None or args.selfc is not None:
+    addLine(ax_sst, chts, "Train_SST", (0.5, 0.5, 1, 1), 10)
+    addLine(ax_sst, chts, "Test_SST", (0, 0, 1, 1), 20)
 
 # Top centre - T2M
-scaleF = 100/(autoencoder.RMSE_scale*autoencoder.T2M_scale)
-ymaxL = max(100,max(hts['Train_T2M']+hts['Test_T2M']))
-if args.comparator is not None:
-    ymaxL = max(ymaxL,max(chts['Train_T2M']+chts['Test_T2M']))
-ax_t2m = fig.add_axes([0.385, 0.55, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(0, ymaxL*scaleF))
+ymaxL = max(100, max(hts["Train_T2M"] + hts["Test_T2M"]))
+if args.comparator is not None or args.selfc is not None:
+    ymaxL = max(ymaxL, max(chts["Train_T2M"] + chts["Test_T2M"]))
+if args.ymax is not None:
+    ymaxL = args.ymax
+ax_t2m = fig.add_axes([0.385, 0.55, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(0, ymaxL))
 ax_t2m.set_ylabel("T2M")
 ax_t2m.set_xlabel("epoch")
 ax_t2m.grid(color=(0, 0, 0, 1), linestyle="-", linewidth=0.1)
-addLine(ax_t2m, hts, "Train_T2M", (1, 0.5, 0.5, 1), 10,rscale=scaleF)
-addLine(ax_t2m, hts, "Test_T2M", (1, 0, 0, 1), 20,rscale=scaleF)
-if args.comparator is not None:
-    addLine(ax_t2m, chts, "Train_T2M", (0.5, 0.5, 1, 1), 10,rscale=scaleF)
-    addLine(ax_t2m, chts, "Test_T2M", (0, 0, 1, 1), 20,rscale=scaleF)
+addLine(ax_t2m, hts, "Train_T2M", (1, 0.5, 0.5, 1), 10)
+addLine(ax_t2m, hts, "Test_T2M", (1, 0, 0, 1), 20)
+if args.comparator is not None or args.selfc is not None:
+    addLine(ax_t2m, chts, "Train_T2M", (0.5, 0.5, 1, 1), 10)
+    addLine(ax_t2m, chts, "Test_T2M", (0, 0, 1, 1), 20)
 
 # Bottom centre - PRATE
-scaleF = 100/(autoencoder.RMSE_scale*autoencoder.PRATE_scale)
-ymaxL = max(100,max(hts['Train_PRATE']+hts['Test_PRATE']))
-if args.comparator is not None:
-    ymaxL = max(ymaxL,max(chts['Train_PRATE']+chts['Test_PRATE']))
-ax_prate = fig.add_axes(
-    [0.385, 0.06, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(0, ymaxL*scaleF)
-)
+ymaxL = max(100, max(hts["Train_PRATE"] + hts["Test_PRATE"]))
+if args.comparator is not None or args.selfc is not None:
+    ymaxL = max(ymaxL, max(chts["Train_PRATE"] + chts["Test_PRATE"]))
+if args.ymax is not None:
+    ymaxL = args.ymax
+ax_prate = fig.add_axes([0.385, 0.06, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(0, ymaxL))
 ax_prate.set_ylabel("PRATE")
 ax_prate.set_xlabel("epoch")
 ax_prate.grid(color=(0, 0, 0, 1), linestyle="-", linewidth=0.1)
-addLine(ax_prate, hts, "Train_PRATE", (1, 0.5, 0.5, 1), 10,rscale=scaleF)
-addLine(ax_prate, hts, "Test_PRATE", (1, 0, 0, 1), 20,rscale=scaleF)
-if args.comparator is not None:
-    addLine(ax_prate, chts, "Train_PRATE", (0.5, 0.5, 1, 1), 10,rscale=scaleF)
-    addLine(ax_prate, chts, "Test_PRATE", (0, 0, 1, 1), 20,rscale=scaleF)
+addLine(ax_prate, hts, "Train_PRATE", (1, 0.5, 0.5, 1), 10)
+addLine(ax_prate, hts, "Test_PRATE", (1, 0, 0, 1), 20)
+if args.comparator is not None or args.selfc is not None:
+    addLine(ax_prate, chts, "Train_PRATE", (0.5, 0.5, 1, 1), 10)
+    addLine(ax_prate, chts, "Test_PRATE", (0, 0, 1, 1), 20)
 
 # Top right - logpz
 ax_lpz = fig.add_axes([0.715, 0.55, 0.27, 0.4], xlim=(-1, epoch + 1), ylim=(ymin, ymax))
@@ -220,7 +228,7 @@ ax_lpz.set_xlabel("epoch")
 ax_lpz.grid(color=(0, 0, 0, 1), linestyle="-", linewidth=0.1)
 addLine(ax_lpz, hts, "Train_logpz", (1, 0.5, 0.5, 1), 10)
 addLine(ax_lpz, hts, "Test_logpz", (1, 0, 0, 1), 20)
-if args.comparator is not None:
+if args.comparator is not None or args.selfc is not None:
     addLine(ax_lpz, chts, "Train_logpz", (0.5, 0.5, 1, 1), 10)
     addLine(ax_lpz, chts, "Test_logpz", (0, 0, 1, 1), 20)
 
@@ -231,7 +239,7 @@ ax_lqz.set_xlabel("epoch")
 ax_lqz.grid(color=(0, 0, 0, 1), linestyle="-", linewidth=0.1)
 addLine(ax_lqz, hts, "Train_logqz_x", (1, 0.5, 0.5, 1), 10)
 addLine(ax_lqz, hts, "Test_logqz_x", (1, 0, 0, 1), 20)
-if args.comparator is not None:
+if args.comparator is not None or args.selfc is not None:
     addLine(ax_lqz, chts, "Train_logqz_x", (0.5, 0.5, 1, 1), 10)
     addLine(ax_lqz, chts, "Test_logqz_x", (0, 0, 1, 1), 20)
 

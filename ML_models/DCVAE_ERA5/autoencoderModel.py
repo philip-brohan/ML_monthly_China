@@ -4,6 +4,8 @@
 import os
 import sys
 import tensorflow as tf
+from tensorflow_addons.image import gaussian_filter2d
+
 
 # Make SST mask tensor
 sys.path.append("%s/../../get_data/" % os.path.dirname(__file__))
@@ -29,14 +31,14 @@ class DCVAE(tf.keras.Model):
         self.T2M_scale = tf.constant(1.0, dtype=tf.float32)
         self.PRATE_scale = tf.constant(1.0, dtype=tf.float32)
         # Max gradient to apply in optimizer
-        self.max_gradient=2.0
+        self.max_gradient = 2.0
 
         # Model to encode input to latent space distribution
         self.encoder = tf.keras.Sequential(
             [
                 tf.keras.layers.InputLayer(input_shape=(200, 320, 4)),
                 tf.keras.layers.Conv2D(
-                    filters=10,
+                    filters=4,
                     kernel_size=3,
                     strides=(2, 2),
                     padding="same",
@@ -45,7 +47,7 @@ class DCVAE(tf.keras.Model):
                     activity_regularizer=tf.keras.regularizers.L2(0.01),
                 ),
                 tf.keras.layers.Conv2D(
-                    filters=20,
+                    filters=8,
                     kernel_size=3,
                     strides=(2, 2),
                     padding="same",
@@ -54,7 +56,7 @@ class DCVAE(tf.keras.Model):
                     activity_regularizer=tf.keras.regularizers.L2(0.01),
                 ),
                 tf.keras.layers.Conv2D(
-                    filters=40,
+                    filters=16,
                     kernel_size=3,
                     strides=(2, 2),
                     padding="same",
@@ -63,6 +65,7 @@ class DCVAE(tf.keras.Model):
                     activity_regularizer=tf.keras.regularizers.L2(0.01),
                 ),
                 tf.keras.layers.Flatten(),
+                #tf.keras.layers.Dropout(0.9),
                 # No activation
                 tf.keras.layers.Dense(
                     self.latent_dim + self.latent_dim,
@@ -76,16 +79,17 @@ class DCVAE(tf.keras.Model):
         self.generator = tf.keras.Sequential(
             [
                 tf.keras.layers.InputLayer(input_shape=(self.latent_dim,)),
-                #tf.keras.layers.Dropout(0.1),
+                #tf.keras.layers.Dropout(0.5),
                 tf.keras.layers.Dense(
-                    units=25 * 40 * 40,
+                    units=25 * 40 * 16,
                     activation=tf.nn.elu,
                     kernel_regularizer=tf.keras.regularizers.L2(0.01),
                     activity_regularizer=tf.keras.regularizers.L2(0.01),
                 ),
-                tf.keras.layers.Reshape(target_shape=(25, 40, 40)),
+                #tf.keras.layers.Dropout(0.5),
+                tf.keras.layers.Reshape(target_shape=(25, 40, 16)),
                 tf.keras.layers.Conv2DTranspose(
-                    filters=20,
+                    filters=8,
                     kernel_size=3,
                     strides=2,
                     padding="same",
@@ -93,8 +97,9 @@ class DCVAE(tf.keras.Model):
                     kernel_regularizer=tf.keras.regularizers.L2(0.01),
                     activity_regularizer=tf.keras.regularizers.L2(0.01),
                 ),
+                #tf.keras.layers.Dropout(0.5),
                 tf.keras.layers.Conv2DTranspose(
-                    filters=10,
+                    filters=4,
                     kernel_size=3,
                     strides=2,
                     padding="same",
@@ -102,6 +107,7 @@ class DCVAE(tf.keras.Model):
                     kernel_regularizer=tf.keras.regularizers.L2(0.01),
                     activity_regularizer=tf.keras.regularizers.L2(0.01),
                 ),
+                #tf.keras.layers.Dropout(0.5),
                 tf.keras.layers.Conv2DTranspose(
                     filters=4,
                     kernel_size=3,
@@ -122,21 +128,21 @@ class DCVAE(tf.keras.Model):
         return mean, logvar
 
     # Sample a batch of points in latent space from the encoded means and variances
-    def reparameterize(self, mean, logvar,training=False):
+    def reparameterize(self, mean, logvar, training=False):
         eps = tf.random.normal(shape=mean.shape)
         return eps * tf.exp(logvar * 0.5) + mean
 
     # Call the generator model with a batch of points in latent space and return a
     #  batch of outputs
-    def generate(self, z,training=False):
+    def generate(self, z, training=False):
         generated = self.generator(z, training=training)
         return generated
 
     # Run the full VAE - convert a batch of inputs to one of outputs
-    def call(self, x,training=True):
-        mean, logvar = self.encode(x,training=training)
-        latent = self.reparameterize(mean, logvar,training=training)
-        generated = self.generate(latent,training=training)
+    def call(self, x, training=True):
+        mean, logvar = self.encode(x, training=training)
+        latent = self.reparameterize(mean, logvar, training=training)
+        generated = self.generate(latent, training=training)
         return generated
 
     # Utility function to calculte fit of sample to N(mean,logvar)
@@ -148,6 +154,59 @@ class DCVAE(tf.keras.Model):
             axis=raxis,
         )
 
+    @tf.function
+    def fit_losses(self, generated, target):
+        # Metric is fractional variance reduction compared to climatology (0.5 everywhere)
+        skill = tf.reduce_mean(
+            tf.math.squared_difference(generated[:, :, :, 0], target[:, :, :, 0])
+        )
+        guess = tf.reduce_mean(
+            tf.math.squared_difference(
+                generated[:, :, :, 0] * 0.0 + 0.5, target[:, :, :, 0]
+            )
+        )
+        rmse_PRMSL = (skill / guess) * self.RMSE_scale * self.PRMSL_scale
+
+        mask = tf.broadcast_to(
+            tf.logical_not(sst_mask), generated[:, :, :, 1].shape
+        )  # Add batch dim
+        skill = tf.reduce_mean(
+            tf.math.squared_difference(
+                tf.boolean_mask(generated[:, :, :, 1], mask),
+                tf.boolean_mask(target[:, :, :, 1], mask),
+            )
+        )
+        guess = tf.reduce_mean(
+            tf.math.squared_difference(
+                tf.boolean_mask(generated[:, :, :, 1] * 0.0 + 0.5, mask),
+                tf.boolean_mask(target[:, :, :, 1], mask),
+            )
+        )
+        rmse_SST = (skill / guess) * self.RMSE_scale * self.SST_scale
+
+        skill = tf.reduce_mean(
+            tf.math.squared_difference(generated[:, :, :, 2], target[:, :, :, 2])
+        )
+        # T2M clim is 0.75 - normalisation
+        guess = tf.reduce_mean(
+            tf.math.squared_difference(
+                generated[:, :, :, 2] * 0.0 + 0.75, target[:, :, :, 2]
+            )
+        )
+        rmse_T2M = (skill / guess) * self.RMSE_scale * self.T2M_scale
+
+        skill = tf.reduce_mean(
+            tf.math.squared_difference(generated[:, :, :, 3], target[:, :, :, 3])
+        )
+        guess = tf.reduce_mean(
+            tf.math.squared_difference(
+                generated[:, :, :, 3] * 0.0 + 0.5, target[:, :, :, 3]
+            )
+        )
+        rmse_PRATE = (skill / guess) * self.RMSE_scale * self.PRATE_scale
+
+        return tf.stack([rmse_PRMSL, rmse_SST, rmse_T2M, rmse_PRATE])
+
     # Calculate the losses from autoencoding a batch of inputs
     # We are calculating a seperate loss for each variable, and for for the
     #  two components of the latent space KLD regularizer. This is useful
@@ -155,51 +214,41 @@ class DCVAE(tf.keras.Model):
     #  on a single value (their sum).
     @tf.function
     def compute_loss(self, x, training):
-        mean, logvar = self.encode(x[0],training=training)
-        latent = self.reparameterize(mean, logvar,training=training)
-        generated = self.generate(latent,training=training)
+        mean, logvar = self.encode(x[0], training=training)
+        latent = self.reparameterize(mean, logvar, training=training)
+        generated = self.generate(latent, training=training)
 
-        # Metric is fractional variance reduction compared to climatology (0.5 everywhere)
-        skill = tf.reduce_mean(tf.math.squared_difference(generated[:, :, :, 0], x[0][:, :, :, 0]))
-        guess = tf.reduce_mean(tf.math.squared_difference(generated[:, :, :, 0]*0.0+0.5,x[0][:, :, :, 0]))
-        rmse_PRMSL = (skill/guess) * self.RMSE_scale * self.PRMSL_scale
-
-        mask = tf.broadcast_to(
-            tf.logical_not(sst_mask), generated[:, :, :, 1].shape
-        )  # Add batch dim
-        skill = tf.reduce_mean(
-                    tf.math.squared_difference(
-                        tf.boolean_mask(generated[:, :, :, 1], mask),
-                        tf.boolean_mask(x[0][:, :, :, 1], mask),
-                    )
-                )
-        guess = tf.reduce_mean(
-                    tf.math.squared_difference(
-                        tf.boolean_mask(generated[:, :, :, 1]*0.0+0.5, mask), 
-                        tf.boolean_mask(x[0][:, :, :, 1], mask),
-                    )
-                )
-        rmse_SST = (skill/guess) * self.RMSE_scale * self.SST_scale
-
-        skill = tf.reduce_mean(tf.math.squared_difference(generated[:, :, :, 2], x[0][:, :, :, 2]))
-        # T2M clim is 0.75 - normalisation
-        guess = tf.reduce_mean(tf.math.squared_difference(generated[:, :, :, 2]*0.0+0.75,x[0][:, :, :, 2]))
-        rmse_T2M = (skill/guess) * self.RMSE_scale * self.T2M_scale
-
-        skill = tf.reduce_mean(tf.math.squared_difference(generated[:, :, :, 3], x[0][:, :, :, 3]))
-        guess = tf.reduce_mean(tf.math.squared_difference(generated[:, :, :, 3]*0.0+0.5,x[0][:, :, :, 3]))
-        rmse_PRATE = (skill/guess) * self.RMSE_scale * self.PRATE_scale
+        rmse_metrics = (
+            self.fit_losses(
+                gaussian_filter2d(generated, filter_shape=(7, 7)),
+                gaussian_filter2d(x[0], filter_shape=(7, 7)),
+            )
+            + self.fit_losses(
+                gaussian_filter2d(generated, filter_shape=(3, 3)),
+                gaussian_filter2d(x[0], filter_shape=(3, 3)),
+            )
+            + self.fit_losses(generated, x[0])
+        )/3
 
         logpz = tf.reduce_mean(self.log_normal_pdf(latent, 0.0, 0.0) * -1)
         logqz_x = tf.reduce_mean(self.log_normal_pdf(latent, mean, logvar))
-        return tf.stack([rmse_PRMSL, rmse_SST, rmse_T2M, rmse_PRATE, logpz, logqz_x])
+        return tf.stack(
+            [
+                rmse_metrics[0],
+                rmse_metrics[1],
+                rmse_metrics[2],
+                rmse_metrics[3],
+                logpz,
+                logqz_x,
+            ]
+        )
 
     # Run the autoencoder for one batch, calculate the errors, calculate the
     #  gradients and update the layer weights.
     @tf.function
     def train_on_batch(self, x, optimizer):
         with tf.GradientTape() as tape:
-            loss_values = self.compute_loss(x,training=True)
+            loss_values = self.compute_loss(x, training=True)
             overall_loss = tf.math.reduce_sum(loss_values, axis=0)
         gradients = tape.gradient(overall_loss, self.trainable_variables)
         # Clip the gradients - helps against sudden numerical problems
