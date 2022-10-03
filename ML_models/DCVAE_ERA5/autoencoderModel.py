@@ -44,7 +44,7 @@ class DCVAE(tf.keras.Model):
                     padding="same",
                     activation="elu",
                     kernel_regularizer=tf.keras.regularizers.L2(0.01),
-                    activity_regularizer=tf.keras.regularizers.L2(0.01),
+                    activity_regularizer=tf.keras.regularizers.L2(0.1),
                 ),
                 tf.keras.layers.Conv2D(
                     filters=8,
@@ -53,7 +53,7 @@ class DCVAE(tf.keras.Model):
                     padding="same",
                     activation="elu",
                     kernel_regularizer=tf.keras.regularizers.L2(0.01),
-                    activity_regularizer=tf.keras.regularizers.L2(0.01),
+                    activity_regularizer=tf.keras.regularizers.L2(0.1),
                 ),
                 tf.keras.layers.Conv2D(
                     filters=16,
@@ -62,15 +62,15 @@ class DCVAE(tf.keras.Model):
                     padding="same",
                     activation="elu",
                     kernel_regularizer=tf.keras.regularizers.L2(0.01),
-                    activity_regularizer=tf.keras.regularizers.L2(0.01),
+                    activity_regularizer=tf.keras.regularizers.L2(0.1),
                 ),
                 tf.keras.layers.Flatten(),
-                #tf.keras.layers.Dropout(0.9),
+                # tf.keras.layers.Dropout(0.9),
                 # No activation
                 tf.keras.layers.Dense(
                     self.latent_dim + self.latent_dim,
                     kernel_regularizer=tf.keras.regularizers.L2(0.01),
-                    activity_regularizer=tf.keras.regularizers.L2(0.01),
+                    activity_regularizer=tf.keras.regularizers.L2(0.1),
                 ),
             ]
         )
@@ -79,14 +79,14 @@ class DCVAE(tf.keras.Model):
         self.generator = tf.keras.Sequential(
             [
                 tf.keras.layers.InputLayer(input_shape=(self.latent_dim,)),
-                #tf.keras.layers.Dropout(0.5),
+                # tf.keras.layers.Dropout(0.5),
                 tf.keras.layers.Dense(
                     units=25 * 40 * 16,
                     activation=tf.nn.elu,
                     kernel_regularizer=tf.keras.regularizers.L2(0.01),
-                    activity_regularizer=tf.keras.regularizers.L2(0.01),
+                    activity_regularizer=tf.keras.regularizers.L2(0.1),
                 ),
-                #tf.keras.layers.Dropout(0.5),
+                # tf.keras.layers.Dropout(0.5),
                 tf.keras.layers.Reshape(target_shape=(25, 40, 16)),
                 tf.keras.layers.Conv2DTranspose(
                     filters=8,
@@ -95,9 +95,9 @@ class DCVAE(tf.keras.Model):
                     padding="same",
                     activation="elu",
                     kernel_regularizer=tf.keras.regularizers.L2(0.01),
-                    activity_regularizer=tf.keras.regularizers.L2(0.01),
+                    activity_regularizer=tf.keras.regularizers.L2(0.1),
                 ),
-                #tf.keras.layers.Dropout(0.5),
+                # tf.keras.layers.Dropout(0.5),
                 tf.keras.layers.Conv2DTranspose(
                     filters=4,
                     kernel_size=3,
@@ -105,16 +105,16 @@ class DCVAE(tf.keras.Model):
                     padding="same",
                     activation="elu",
                     kernel_regularizer=tf.keras.regularizers.L2(0.01),
-                    activity_regularizer=tf.keras.regularizers.L2(0.01),
+                    activity_regularizer=tf.keras.regularizers.L2(0.1),
                 ),
-                #tf.keras.layers.Dropout(0.5),
+                # tf.keras.layers.Dropout(0.5),
                 tf.keras.layers.Conv2DTranspose(
                     filters=4,
                     kernel_size=3,
                     strides=2,
                     padding="same",
                     kernel_regularizer=tf.keras.regularizers.L2(0.01),
-                    activity_regularizer=tf.keras.regularizers.L2(0.01),
+                    activity_regularizer=tf.keras.regularizers.L2(0.1),
                 ),
             ]
         )
@@ -155,57 +155,35 @@ class DCVAE(tf.keras.Model):
         )
 
     @tf.function
-    def fit_losses(self, generated, target):
-        # Metric is fractional variance reduction compared to climatology (0.5 everywhere)
+    def fit_loss(self, generated, target, climatology, filter=None, mask=None):
+        if mask is None:
+            mask = True  # No mask anywhere, by default
+        mask = tf.broadcast_to(mask, generated.shape)
+        if filter is not None:
+            generated = gaussian_filter2d(
+                tf.expand_dims(generated, axis=3), filter_shape=filter
+            )[:, :, :, 0]
+            climatology = gaussian_filter2d(
+                tf.expand_dims(climatology, axis=3), filter_shape=filter
+            )[:, :, :, 0]
+            target = gaussian_filter2d(
+                tf.expand_dims(target, axis=3), filter_shape=filter
+            )[:, :, :, 0]
+
+        # Metric is fractional variance reduction compared to climatology
         skill = tf.reduce_mean(
-            tf.math.squared_difference(generated[:, :, :, 0], target[:, :, :, 0])
+            tf.math.squared_difference(
+                tf.boolean_mask(generated, mask),
+                tf.boolean_mask(target, mask),
+            )
         )
         guess = tf.reduce_mean(
             tf.math.squared_difference(
-                generated[:, :, :, 0] * 0.0 + 0.5, target[:, :, :, 0]
+                tf.boolean_mask(climatology, mask),
+                tf.boolean_mask(target, mask),
             )
         )
-        rmse_PRMSL = (skill / guess) * self.RMSE_scale * self.PRMSL_scale
-
-        mask = tf.broadcast_to(
-            tf.logical_not(sst_mask), generated[:, :, :, 1].shape
-        )  # Add batch dim
-        skill = tf.reduce_mean(
-            tf.math.squared_difference(
-                tf.boolean_mask(generated[:, :, :, 1], mask),
-                tf.boolean_mask(target[:, :, :, 1], mask),
-            )
-        )
-        guess = tf.reduce_mean(
-            tf.math.squared_difference(
-                tf.boolean_mask(generated[:, :, :, 1] * 0.0 + 0.5, mask),
-                tf.boolean_mask(target[:, :, :, 1], mask),
-            )
-        )
-        rmse_SST = (skill / guess) * self.RMSE_scale * self.SST_scale
-
-        skill = tf.reduce_mean(
-            tf.math.squared_difference(generated[:, :, :, 2], target[:, :, :, 2])
-        )
-        # T2M clim is 0.75 - normalisation
-        guess = tf.reduce_mean(
-            tf.math.squared_difference(
-                generated[:, :, :, 2] * 0.0 + 0.75, target[:, :, :, 2]
-            )
-        )
-        rmse_T2M = (skill / guess) * self.RMSE_scale * self.T2M_scale
-
-        skill = tf.reduce_mean(
-            tf.math.squared_difference(generated[:, :, :, 3], target[:, :, :, 3])
-        )
-        guess = tf.reduce_mean(
-            tf.math.squared_difference(
-                generated[:, :, :, 3] * 0.0 + 0.5, target[:, :, :, 3]
-            )
-        )
-        rmse_PRATE = (skill / guess) * self.RMSE_scale * self.PRATE_scale
-
-        return tf.stack([rmse_PRMSL, rmse_SST, rmse_T2M, rmse_PRATE])
+        return skill / guess
 
     # Calculate the losses from autoencoding a batch of inputs
     # We are calculating a seperate loss for each variable, and for for the
@@ -218,26 +196,55 @@ class DCVAE(tf.keras.Model):
         latent = self.reparameterize(mean, logvar, training=training)
         generated = self.generate(latent, training=training)
 
-        rmse_metrics = (
-            self.fit_losses(
-                gaussian_filter2d(generated, filter_shape=(7, 7)),
-                gaussian_filter2d(x[0], filter_shape=(7, 7)),
-            )
-            + self.fit_losses(
-                gaussian_filter2d(generated, filter_shape=(3, 3)),
-                gaussian_filter2d(x[0], filter_shape=(3, 3)),
-            )
-            + self.fit_losses(generated, x[0])
-        )/3
+        gV = generated[:, :, :, 0]
+        cV = gV * 0.0 + 0.5  # Climatology
+        tV = x[0][:, :, :, 0]
+        prmsl_metric = (
+            self.fit_loss(gV, tV, cV, filter=None, mask=None)
+            + self.fit_loss(gV, tV, cV, filter=(3, 3), mask=None)
+            + self.fit_loss(gV, tV, cV, filter=(7, 7), mask=None)
+        ) / 3
+        prmsl_metric *= self.RMSE_scale * self.PRMSL_scale
+
+        gV = generated[:, :, :, 1]
+        cV = gV * 0.0 + 0.5  # Climatology
+        tV = x[0][:, :, :, 1]
+        smsk = tf.logical_not(sst_mask)
+        sst_metric = (
+            self.fit_loss(gV, tV, cV, filter=None, mask=smsk)
+            + self.fit_loss(gV, tV, cV, filter=(3, 3), mask=smsk)
+            + self.fit_loss(gV, tV, cV, filter=(7, 7), mask=smsk)
+        ) / 3
+        sst_metric *= self.RMSE_scale * self.SST_scale
+
+        gV = generated[:, :, :, 2]
+        cV = gV * 0.0 + 0.75  # Climatology (0.75 for T2M)
+        tV = x[0][:, :, :, 2]
+        t2m_metric = (
+            self.fit_loss(gV, tV, cV, filter=None, mask=None)
+            + self.fit_loss(gV, tV, cV, filter=(3, 3), mask=None)
+            + self.fit_loss(gV, tV, cV, filter=(7, 7), mask=None)
+        ) / 3
+        t2m_metric *= self.RMSE_scale * self.T2M_scale
+
+        gV = generated[:, :, :, 3]
+        cV = gV * 0.0 + 0.5  # Climatology
+        tV = x[0][:, :, :, 3]
+        prate_metric = (
+            self.fit_loss(gV, tV, cV, filter=None, mask=None)
+            + self.fit_loss(gV, tV, cV, filter=(3, 3), mask=None)
+            + self.fit_loss(gV, tV, cV, filter=(7, 7), mask=None)
+        ) / 3
+        prate_metric *= self.RMSE_scale * self.PRATE_scale
 
         logpz = tf.reduce_mean(self.log_normal_pdf(latent, 0.0, 0.0) * -1)
         logqz_x = tf.reduce_mean(self.log_normal_pdf(latent, mean, logvar))
         return tf.stack(
             [
-                rmse_metrics[0],
-                rmse_metrics[1],
-                rmse_metrics[2],
-                rmse_metrics[3],
+                prmsl_metric,
+                sst_metric,
+                t2m_metric,
+                prate_metric,
                 logpz,
                 logqz_x,
             ]
