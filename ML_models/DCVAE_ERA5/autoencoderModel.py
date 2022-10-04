@@ -4,7 +4,7 @@
 import os
 import sys
 import tensorflow as tf
-from tensorflow_addons.image import gaussian_filter2d
+from tensorflow_addons.image import mean_filter2d
 
 
 # Make SST mask tensor
@@ -160,13 +160,13 @@ class DCVAE(tf.keras.Model):
             mask = True  # No mask anywhere, by default
         mask = tf.broadcast_to(mask, generated.shape)
         if filter is not None:
-            generated = gaussian_filter2d(
+            generated = mean_filter2d(
                 tf.expand_dims(generated, axis=3), filter_shape=filter
             )[:, :, :, 0]
-            climatology = gaussian_filter2d(
+            climatology = mean_filter2d(
                 tf.expand_dims(climatology, axis=3), filter_shape=filter
             )[:, :, :, 0]
-            target = gaussian_filter2d(
+            target = mean_filter2d(
                 tf.expand_dims(target, axis=3), filter_shape=filter
             )[:, :, :, 0]
 
@@ -201,9 +201,9 @@ class DCVAE(tf.keras.Model):
         tV = x[0][:, :, :, 0]
         prmsl_metric = (
             self.fit_loss(gV, tV, cV, filter=None, mask=None)
-            + self.fit_loss(gV, tV, cV, filter=(3, 3), mask=None)
-            + self.fit_loss(gV, tV, cV, filter=(7, 7), mask=None)
-        ) / 3
+#            + self.fit_loss(gV, tV, cV, filter=(3, 3), mask=None)
+#            + self.fit_loss(gV, tV, cV, filter=(7, 7), mask=None)
+        ) / 1
         prmsl_metric *= self.RMSE_scale * self.PRMSL_scale
 
         gV = generated[:, :, :, 1]
@@ -212,8 +212,8 @@ class DCVAE(tf.keras.Model):
         smsk = tf.logical_not(sst_mask)
         sst_metric = (
             self.fit_loss(gV, tV, cV, filter=None, mask=smsk)
-            + self.fit_loss(gV, tV, cV, filter=(3, 3), mask=smsk)
-            + self.fit_loss(gV, tV, cV, filter=(7, 7), mask=smsk)
+            + self.fit_loss(gV, tV, cV, filter=(15, 15), mask=smsk)
+            + self.fit_loss(gV, tV, cV, filter=(31, 31), mask=smsk)
         ) / 3
         sst_metric *= self.RMSE_scale * self.SST_scale
 
@@ -222,9 +222,9 @@ class DCVAE(tf.keras.Model):
         tV = x[0][:, :, :, 2]
         t2m_metric = (
             self.fit_loss(gV, tV, cV, filter=None, mask=None)
-            + self.fit_loss(gV, tV, cV, filter=(3, 3), mask=None)
-            + self.fit_loss(gV, tV, cV, filter=(7, 7), mask=None)
-        ) / 3
+#            + self.fit_loss(gV, tV, cV, filter=(3, 3), mask=None)
+#            + self.fit_loss(gV, tV, cV, filter=(7, 7), mask=None)
+        ) / 1
         t2m_metric *= self.RMSE_scale * self.T2M_scale
 
         gV = generated[:, :, :, 3]
@@ -232,8 +232,8 @@ class DCVAE(tf.keras.Model):
         tV = x[0][:, :, :, 3]
         prate_metric = (
             self.fit_loss(gV, tV, cV, filter=None, mask=None)
-            + self.fit_loss(gV, tV, cV, filter=(3, 3), mask=None)
-            + self.fit_loss(gV, tV, cV, filter=(7, 7), mask=None)
+            + self.fit_loss(gV, tV, cV, filter=(15, 15), mask=None)
+            + self.fit_loss(gV, tV, cV, filter=(31, 31), mask=None)
         ) / 3
         prate_metric *= self.RMSE_scale * self.PRATE_scale
 

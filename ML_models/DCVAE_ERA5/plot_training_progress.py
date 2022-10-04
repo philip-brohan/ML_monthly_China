@@ -9,7 +9,6 @@ import numpy as np
 import tensorflow as tf
 
 from tensorflow.core.util import event_pb2
-from tensorflow.python.lib.io import tf_record
 from tensorflow.python.framework import tensor_util
 
 import matplotlib
@@ -22,6 +21,10 @@ sys.path.append("%s/." % os.path.dirname(__file__))
 from localise import LSCRATCH
 
 import argparse
+
+# I don't need all the messages about a missing font
+import logging
+logging.getLogger('matplotlib.font_manager').disabled = True
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -50,11 +53,6 @@ args = parser.parse_args()
 
 
 # Load the history
-def my_summary_iterator(path):
-    for r in tf_record.tf_record_iterator(path):
-        yield event_pb2.Event.FromString(r)
-
-
 def loadHistory(LSC, offset=-1):
     history = {}
     summary_dir = "%s/models/Training_log" % LSC
@@ -62,7 +60,9 @@ def loadHistory(LSC, offset=-1):
     Rfiles.sort(key=lambda x: os.path.getmtime(os.path.join(summary_dir, x)))
     filename = Rfiles[offset]
     path = os.path.join(summary_dir, filename)
-    for event in my_summary_iterator(path):
+    serialized_records = tf.data.TFRecordDataset(path)
+    for srecord in serialized_records:
+        event = event_pb2.Event.FromString(srecord.numpy())
         for value in event.summary.value:
             t = tensor_util.MakeNdarray(value.tensor)
             if not value.tag in history.keys():

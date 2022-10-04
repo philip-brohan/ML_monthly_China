@@ -19,6 +19,11 @@ from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle
 from matplotlib.lines import Line2D
 
+# I don't need all the messages about a missing font
+import logging
+logging.getLogger('matplotlib.font_manager').disabled = True
+
+
 import argparse
 
 parser = argparse.ArgumentParser()

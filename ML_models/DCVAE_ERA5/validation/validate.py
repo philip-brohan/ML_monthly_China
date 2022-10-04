@@ -29,6 +29,10 @@ import warnings
 
 warnings.filterwarnings("ignore", message=".*partition.*")
 
+# I don't need all the messages about a missing font
+import logging
+logging.getLogger('matplotlib.font_manager').disabled = True
+
 import argparse
 
 parser = argparse.ArgumentParser()
