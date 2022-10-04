@@ -13,8 +13,7 @@ dependencies:
   - cdsapi=0.5
 # ML model building and diagnostics
 # If you don't have a GPU, tensorflow-eigen might be faster
-  - tensorflow-gpu=2.4
-  - tensorflow-probability=0.12
+  - tensorflow=2.9.1=gpu_py39hd4ae112_0
 # Optional, code formatter
   - black
 # Optional - documentation generator
@@ -25,4 +24,6 @@ dependencies:
   - pip
   - pip:
   # For bilinear interpolation
-    - tensorflow-addons==0.14
+    - tensorflow-addons==0.18
+  # For input space search
+    - tensorflow-probability==0.17
