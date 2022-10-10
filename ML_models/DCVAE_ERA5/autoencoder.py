@@ -31,7 +31,7 @@ nTrainingImages = None
 nTestImages = None
 
 # How many epochs to train for
-nEpochs = 100
+nEpochs = 250
 # Length of an epoch - if None, same as nTrainingImages
 nImagesInEpoch = None
 nRepeatsPerEpoch = 5  # Show each month this many times
@@ -70,7 +70,7 @@ with strategy.scope():
 
     # Instantiate the model
     autoencoder = DCVAE()
-    optimizer = tf.keras.optimizers.Adam(1e-3)
+    optimizer = tf.keras.optimizers.Adam(1e-4)
     # If we are doing a restart, load the weights
     if args.epoch > 1:
         weights_dir = ("%s/models/Epoch_%04d") % (

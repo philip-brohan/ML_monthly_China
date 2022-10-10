@@ -5,7 +5,8 @@ channels:
 dependencies:
 # Basics
   - python=3.9
-  - iris=3.2
+  - scipy=1.9 # otherwise installs 1.7 (why?), which complains about numpy
+  - iris=3.3
   - cmocean=2.0
   - parallel
 # Get data from ERA5
