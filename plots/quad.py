@@ -136,15 +136,15 @@ cb = fig.colorbar(
 )
 
 # Top right - PRATE
-var = load_variable("total_precipitation", args.year, args.month)
+var = load_variable("cbrt_precipitation", args.year, args.month)
 if args.actuals:
-    (dmin, dmax) = get_range("total_precipitation", args.month, anomalies=False)
+    (dmin, dmax) = get_range("cbrt_precipitation", args.month, anomalies=False)
     dmin = 0
     cmap = cmocean.cm.rain
 else:
-    clim = load_climatology("total_precipitation", args.month)
+    clim = load_climatology("cbrt_precipitation", args.month)
     var.data -= clim.data
-    (dmin, dmax) = get_range("total_precipitation", args.month, anomalies=True)
+    (dmin, dmax) = get_range("cbrt_precipitation", args.month, anomalies=True)
     cmap = cmocean.cm.tarn
 ax_prate = fig.add_axes([0.025 / 2 + 0.5, 0.125 / 2 + 0.5, 0.95 / 2, 0.85 / 2])
 ax_prate.set_axis_off()
@@ -171,7 +171,7 @@ if args.actuals:
 else:
     clim = load_climatology("2m_temperature", args.month)
     var.data -= clim.data
-    (dmin, dmax) = get_range("sea_surface_temperature", args.month, anomalies=True)
+    (dmin, dmax) = get_range("2m_temperature", args.month, anomalies=True)
 ax_tmp2m = fig.add_axes([0.025 / 2 + 0.5, 0.125 / 2, 0.95 / 2, 0.85 / 2])
 ax_tmp2m.set_axis_off()
 TMP2m_img = plotFieldAxes(
