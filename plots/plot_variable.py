@@ -21,6 +21,9 @@ def plotFieldAxes(
     vMin=None,
     lMask=None,
     cMap=cmocean.cm.balance,
+    stations=None,
+    s_colour='yellow',
+    s_size=50,
 ):
 
     if vMax is None:
@@ -69,6 +72,16 @@ def plotFieldAxes(
             vmax=1,
             alpha=1.0,
             zorder=100,
+        )
+
+    # Overlay the station points
+    if stations is not None:
+        s_pts = ax_map.scatter(
+            stations[0],
+            stations[1],
+            c=s_colour,
+            s=s_size,
+            zorder=200,
         )
 
     return T_img

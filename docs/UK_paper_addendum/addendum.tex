@@ -1,0 +1,37 @@
+\documentclass[a4paper,12pt]{article} 
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{times}
+\usepackage{caption}
+\usepackage{hyperref}
+
+\title{China station locations and reanalysis quality}
+
+\author{Philip Brohan} 
+\date{1st May 2023}
+
+\begin{document} 
+\maketitle
+
+This document is an addendum to \href{https://metoffice.sharepoint.com/:b:/r/sites/csspchinaext/MO%20Outputs%20Upload/WP1/Papers/D1.6.3_Brohan_ML_for_climate_modelling.pdf?csf=1&web=1&e=G4ypno}{{\it ML for Climate Modelling} (Brohan 2023)}. That paper describes a machine learning model architecture and an example model for UK surface weather. This document shows the use of a similar model, trained on China-region fields from ERA5, and demonstrates how to use it to look at station coverage effects.
+
+For details of the China-region model, see the \href{https://github.com/philip-brohan/ML_monthly_China}{source code repository}. It's not quite as good as the UK version, but it represents regional climate well (figures \ref{Validation} and \ref{Validation_multi}).
+
+\begin{figure}[h]
+\center{\includegraphics[width=8.3cm]{../../ML_models/DCVAE_ERA5/validation/comparison.png}}
+\caption{Validation plot for China-region model for a test month (January 1969). Left column: Target fields (from ERA5). Middle column: (model output). Right column model::target scatter. For four variables (from top): MSLP, Precipitation, T2m, and SST.}
+\label{Validation}
+\end{figure}
+
+\begin{figure}[h]
+\center{\includegraphics[width=8.3cm]{../../ML_models/DCVAE_ERA5/validation/multi.png}}
+\caption{Time-series of regional mean for all test months (and scatter plots). Black lines show target data, red lines model output.}
+\label{Validation_multi}
+\end{figure}
+    
+
+
+
+
+\end{document}
+
