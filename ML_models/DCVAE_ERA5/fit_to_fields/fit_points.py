@@ -11,6 +11,7 @@ import sys
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
+import pickle
 
 from scipy.stats.qmc import PoissonDisk
 
@@ -51,7 +52,7 @@ parser.add_argument(
 parser.add_argument(
     "--station_separation",
     help="Typical distance between stations (degrees)",
-    type=float,
+    type=int,
     required=False,
     default=10,
 )
@@ -96,12 +97,17 @@ lon_range = (
     lm_ERA5.coords("longitude")[0].points.max(),
 )
 scale = max((lat_range[1] - lat_range[0]), lon_range[1] - lon_range[0])
-engine = PoissonDisk(d=2, radius=args.station_separation / scale)
-sample = engine.fill_space()
-sample = sample * scale
-sample[:, 0] += lon_range[0]
-sample[:, 1] += lat_range[0]
-sample = sample[(sample[:, 0] < lon_range[1]) & (sample[:, 1] < lat_range[1])]
+smp_file = "sample_%02d.pkl" % args.station_separation
+if os.path.isfile(smp_file):
+    sample = pickle.load(open(smp_file, "rb"))
+else:
+    engine = PoissonDisk(d=2, radius=args.station_separation / scale)
+    sample = engine.fill_space()
+    sample = sample * scale
+    sample[:, 0] += lon_range[0]
+    sample[:, 1] += lat_range[0]
+    sample = sample[(sample[:, 0] < lon_range[1]) & (sample[:, 1] < lat_range[1])]
+    pickle.dump(sample, open(smp_file, "wb"))
 
 # Make a coverage mask with missing data everywhere except at station locations
 width, height = lm_ERA5.data.shape
@@ -245,7 +251,9 @@ axb.add_patch(
 
 
 # Top left - PRMSL original
+stnp = None
 if args.PRMSL:
+    stnp = (sample[:,0],sample[:,1])
     ax_back = fig.add_axes([0.00, 0.75, 1.0, 0.25])
     ax_back.set_axis_off()
     ax_back.add_patch(
@@ -273,7 +281,7 @@ PRMSL_img = plotFieldAxes(
     vMin=dmin,
     lMask=lm_plot,
     cMap=cmocean.cm.diff,
-    stations=(slx,sly),
+    stations=stnp,
 )
 ax_prmsl_cb = fig.add_axes([0.125 / 3, 0.05 / 4 + 0.75, 0.75 / 3, 0.05 / 4])
 ax_prmsl_cb.set_axis_off()
@@ -313,7 +321,9 @@ plotScatterAxes(ax_prmsl_s, varx, vary, vMin=dmin, vMax=dmax, bins="log")
 
 
 # 2nd left - PRATE original
+stnp = None
 if args.PRATE:
+    stnp = (sample[:,0],sample[:,1])
     ax_back = fig.add_axes([0.00, 0.5, 1.0, 0.25])
     ax_back.set_axis_off()
     ax_back.add_patch(
@@ -341,7 +351,7 @@ PRATE_img = plotFieldAxes(
     vMin=dmin,
     lMask=lm_plot,
     cMap=cmocean.cm.tarn,
-    stations=(slx,sly),
+    stations=stnp,
 )
 ax_prate_cb = fig.add_axes([0.125 / 3, 0.05 / 4 + 0.5, 0.75 / 3, 0.05 / 4])
 ax_prate_cb.set_axis_off()
@@ -380,7 +390,9 @@ plotScatterAxes(ax_prate_s, varx, vary, vMin=dmin, vMax=dmax, bins="log")
 
 
 # 3rd left - T2m original
+stnp = None
 if args.TMP2m:
+    stnp = (sample[:,0],sample[:,1])
     ax_back = fig.add_axes([0.00, 0.25, 1.0, 0.25])
     ax_back.set_axis_off()
     ax_back.add_patch(
@@ -394,10 +406,10 @@ if args.TMP2m:
         )
     )
 varx.data = np.squeeze(ict[:, :, 2].numpy())
-varx = unnormalise(varx, "2m_temperature") - 273.15
+varx = unnormalise(varx, "2m_temperature")
 (dmin, dmax) = get_range("2m_temperature", args.month, anomalies=True)
-dmin -= 273.15 + 2
-dmax -= 273.15 - 2
+dmin -= 0 + 2
+dmax -= 0 - 2
 ax_t2m = fig.add_axes([0.025 / 3, 0.125 / 4 + 0.25, 0.95 / 3, 0.85 / 4])
 ax_t2m.set_axis_off()
 T2m_img = plotFieldAxes(
@@ -407,7 +419,7 @@ T2m_img = plotFieldAxes(
     vMin=dmin,
     lMask=lm_plot,
     cMap=cmocean.cm.balance,
-    stations=(slx,sly),
+    stations=stnp,
 )
 ax_t2m_cb = fig.add_axes([0.125 / 3, 0.05 / 4 + 0.25, 0.75 / 3, 0.05 / 4])
 ax_t2m_cb.set_axis_off()
@@ -417,7 +429,7 @@ cb = fig.colorbar(
 
 # 3rd centre - T2m generated
 vary.data = np.squeeze(generated[0, :, :, 2].numpy())
-vary = unnormalise(vary, "2m_temperature") - 273.15
+vary = unnormalise(vary, "2m_temperature")
 ax_t2m_e = fig.add_axes([0.025 / 3 + 1 / 3, 0.125 / 4 + 0.25, 0.95 / 3, 0.85 / 4])
 ax_t2m_e.set_axis_off()
 T2m_e_img = plotFieldAxes(
@@ -457,10 +469,10 @@ if args.SST:
     )
 varx.data = np.squeeze(ict[:, :, 1].numpy())
 varx.data = np.ma.masked_where(lm_ERA5.data.mask, varx.data, copy=False)
-varx = unnormalise(varx, "sea_surface_temperature") - 273.15
+varx = unnormalise(varx, "sea_surface_temperature")
 (dmin, dmax) = get_range("sea_surface_temperature", args.month, anomalies=True)
-dmin -= 273.15 + 2
-dmax -= 273.15 - 2
+dmin -= 0 + 2
+dmax -= 0 - 2
 ax_sst = fig.add_axes([0.025 / 3, 0.125 / 4, 0.95 / 3, 0.85 / 4])
 ax_sst.set_axis_off()
 SST_img = plotFieldAxes(
@@ -470,7 +482,7 @@ SST_img = plotFieldAxes(
     vMin=dmin,
     lMask=lm_plot,
     cMap=cmocean.cm.balance,
-    stations=(slx,sly),
+    stations=None,
 )
 ax_sst_cb = fig.add_axes([0.125 / 3, 0.05 / 4, 0.75 / 3, 0.05 / 4])
 ax_sst_cb.set_axis_off()
@@ -481,7 +493,7 @@ cb = fig.colorbar(
 # 2nd centre - SST generated
 vary.data = generated.numpy()[0, :, :, 1]
 vary.data = np.ma.masked_where(lm_ERA5.data.mask, vary.data, copy=False)
-vary = unnormalise(vary, "sea_surface_temperature") - 273.15
+vary = unnormalise(vary, "sea_surface_temperature")
 ax_sst_e = fig.add_axes([0.025 / 3 + 1 / 3, 0.125 / 4, 0.95 / 3, 0.85 / 4])
 ax_sst_e.set_axis_off()
 SST_e_img = plotFieldAxes(
