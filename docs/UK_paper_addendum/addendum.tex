@@ -18,7 +18,15 @@ This document is an addendum to \href{https://metoffice.sharepoint.com/:b:/r/sit
 
 For details of the China-region model, see the \href{https://github.com/philip-brohan/ML_monthly_China}{source code repository}. It's not quite as good as the UK version, but it represents regional climate well (figure \ref{Validation}).
 
+To use this system to look at station coverage effects, we use the same data assimilation system described in Brohan 2023, but decimate the coverage of MSLP, 2m temperature and precipitation to a set of points corresponding to station locations (we keep SST as a field). This will reproduce the effects of assimilating data only from the station locations.
 
+Figure \ref{All_05} reproduces the validation plot, but only using data from station locations - assuming a good coverage of stations (5 degree characteristic separation).
+
+Figure \ref{All_20} is the same, but uses many fewer stations (20 degree characteristic separation).
+
+And figure \ref{SST+PRMSL_05} is more representative of current dynamical reanalyses - it assimilates PRMSL on;ly, at the station locations.
+
+The system behaves as expected - with lots of stations results are good, reducing the station coverage reduces the precision of the reconstruction (but useful results are still obtained with a small number of stations), and even assimilating only PRMSL (and the SST field) there is still skill in the model output of 2m temperature and precipitation.
 
 \begin{figure}[h]
 \begin{subfigure}{1.0\textwidth}    
